@@ -2,7 +2,6 @@
 
 #include <assert.h>
 #include <stdio.h>
-#include <stdlib.h>
 static struct MapInstance g_levelmap;
 void LoadLevel() {
     FILE* fMap = fopen("resources/level.map", "rb");
