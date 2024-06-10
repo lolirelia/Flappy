@@ -18,6 +18,7 @@ typedef int NISockAddrSize;
 #else
 #include <arpa/inet.h>
 #include <errno.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -31,18 +32,18 @@ typedef socklen_t NISockAddrSize;
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-typedef struct sockaddr_in NISockAddrIn;
-typedef struct sockaddr NISockAddr;
 
 typedef struct SNetInterface {
     NISocket m_niPeer;
 } NetInterface;
-typedef struct SNetInterfaceAddr {
-    NISockAddrIn m_niRemoteAddr;
-    NISockAddrSize m_niUSizeOfAddr;
-} NetInterfaceAddr;
+typedef struct SNetPeerAddress{
+    struct sockaddr_in sin;
 
-typedef void (*NiTransferCallback)(const NetInterface* ni,  NetInterfaceAddr* niAddr,
+}NetPeerAddress;
+
+
+
+typedef void (*NiTransferCallback)(const NetInterface* ni,  struct sockaddr* niAddr,
                                    const char* buffer, NITransferSize niTransferSize);
 
 NetInterface* MakeNetInterface();
@@ -51,12 +52,10 @@ int NIMakeSocket(NetInterface* ni);
 int NIMakeSocketBind(NetInterface* ni);
 void NetSleep(uint32_t u32Miliseconds);
 void NIPoll(NetInterface* ni, NiTransferCallback niCallback);
-void SendPacket(NetInterface* ni, NetInterfaceAddr* niAddr, char* msgbuffer,
+void SendPacket(NetInterface* ni, struct sockaddr* niAddr, char* msgbuffer,
                 uint32_t size);
 
-NetInterfaceAddr* MakeRemoteAddress(const char* cHostName, uint16_t u16Port);
-void DestroyNetInterfaceAddr(NetInterfaceAddr* niAddr);
-
+NetPeerAddress NIMakeRemoteAddress(const char* cHostName, const char* port);
 int IsErrorNoBlock(NetInterface* ni);
 void NIDestroySocket(NetInterface* ni);
 

@@ -13,6 +13,7 @@
         "vector": "c",
         "levelmap.h": "c",
         "gameshared.h": "c",
-        "netinterface.h": "c"
+        "netinterface.h": "c",
+        "stdio.h": "c"
     }
 }
