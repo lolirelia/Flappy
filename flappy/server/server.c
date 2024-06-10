@@ -8,10 +8,18 @@
 #include "gameshared.h"
 #include "levelmap.h"
 struct GamestateServerside gstate;
-uv_udp_send_t send_req;
-void InsertPlayerIntoGamestate(struct sockaddr addr) {
+
+void InsertPlayerIntoGamestate(uint32_t ipv4, uint16_t port) {
     if (gstate.playercount < kMaxNumberOfPlayers) {
-        gstate.players[gstate.playercount].addr = addr;
+        gstate.players[gstate.playercount].ipv4 = ipv4;
+        gstate.players[gstate.playercount].port = port;
+        char ipbuffer[32] = {0};
+
+        sprintf(ipbuffer, "%d.%d.%d.%d", (ipv4 >> 0) & 0xFF, (ipv4 >> 8) & 0xFF,
+                (ipv4 >> 16) & 0xFF, (ipv4 >> 24) & 0xFF);
+        printf("%s %d\n", ipbuffer, port);
+        uv_ip4_addr(ipbuffer, htons(port),
+                    &gstate.players[gstate.playercount].addrin);
         gstate.players[gstate.playercount].player.id = ++gstate.playercount;
     }
     if (gstate.playercount == kMaxNumberOfPlayers) {
@@ -20,14 +28,14 @@ void InsertPlayerIntoGamestate(struct sockaddr addr) {
 }
 
 void GameUpdate(uv_udp_t* server) {
-    static const float kGravity = 9.8f;
+    static const float kGravity = 5.f;
     static const float kXVelocity = 1.f;
     if (gstate.playercount == kMaxNumberOfPlayers) {
         struct GamestateClient gstateclient;
 
         ++gstate.tick;
 
-        gstateclient.tick = gstate.tick;
+        // gstateclient.tick = gstate.tick;
         for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
             struct PlayerServerside* player = &gstate.players[n];
             if (player->isflapping) {
@@ -43,48 +51,53 @@ void GameUpdate(uv_udp_t* server) {
             // player->player.x+=player->velocity.x;
             // player->player.y+=player->velocity.y;
 
-            // gstateclient.players[n].id = player->player.id;
-            gstateclient.players[n].id = player->player.id;
-            gstateclient.players[n].position = player->player.position;
+            kPackPlayerId(gstateclient.players[n].x, player->player.id,
+                          gstate.tick);
+            kPackPlayerPosition(gstateclient.players[n].y,
+                                player->player.position);
         }
+        uv_udp_send_t send_req;
         uv_buf_t buffer =
             uv_buf_init((char*)&gstateclient, sizeof(struct GamestateClient));
         for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
-            
-            
-            uv_udp_send(&send_req, server, &buffer, 1, &gstate.players[n].addr,NULL);
+            uv_udp_send(&send_req, server, &buffer, 1,
+                        &gstate.players[n].addrin, NULL);
         }
     }
 }
 
 static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                     const struct sockaddr* addr, unsigned flags) {
-    if (nread == sizeof(uint16_t)) {
-        uint16_t packet = 0;
-        memcpy(&packet, rcvbuf->base, sizeof(uint16_t));
-        if (packet == 0xCAFE) {
-            printf("inserting player into game\n");
-            InsertPlayerIntoGamestate(*addr);
-        }
-    }
-    if (nread == sizeof(uint8_t)) {
-        uint8_t packet = 0;
-        memcpy(&packet, rcvbuf->base, sizeof(uint8_t));
-        if (gstate.gamestarted) {
-            struct PlayerServerside* player = NULL;
-            for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
-                if (kGetAddr(gstate.players[n].addr)->sin_addr.s_addr ==
-                    kGetAddrPtr(addr)->sin_addr.s_addr) {
-                    player = &gstate.players[n];
-                    printf("found player\n");
-                    break;
+    if (nread == sizeof(uint64_t)) {
+        uint64_t packet = 0;
+        memcpy(&packet, rcvbuf->base, sizeof(packet));
+        uint16_t packetid = kGetPacketId(packet);
+        if (packetid == kEFlappyPacketInsertPlayer) {
+            printf("inserting player into game: ");
+            uint32_t ipv4 = kGetAddrPtr(addr)->sin_addr.s_addr;
+            uint16_t port = kGetAddrPtr(addr)->sin_port;
+            printf("%d.%d.%d.%d %d\n", ipv4 >> 0 & 0xFF, ipv4 >> 8 & 0xFF,
+                   ipv4 >> 16 & 0xFF, ipv4 >> 24 & 0xFF, port);
+            struct sockaddr local;
+            InsertPlayerIntoGamestate(ipv4, port);
+        } else if (packetid == kEFlappyPacketIdInput) {
+            if (gstate.gamestarted) {
+                struct PlayerServerside* player = NULL;
+                uint32_t ipv4 = kGetAddrPtr(addr)->sin_addr.s_addr;
+                uint16_t port = kGetAddrPtr(addr)->sin_port;
+                for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
+                    if (gstate.players[n].ipv4 == ipv4 &&
+                        gstate.players[n].port == port) {
+                        player = &gstate.players[n];
+                        break;
+                    }
                 }
+                assert(player != NULL);
+                player->isflapping = kGetInput(packet);
             }
-            assert(player != NULL);
-            player->isflapping = packet;
-            // update player
         }
     }
+
     free(rcvbuf->base);
 }
 static void on_alloc(uv_handle_t* client, size_t suggested_size,

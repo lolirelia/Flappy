@@ -8,7 +8,6 @@
 #include "gameshared.h"
 #include "levelmap.h"
 
-uv_udp_send_t send_req;
 uint32_t myid = 0;
 uint32_t tick = 0;
 uint32_t serverbasetick = 0;
@@ -16,13 +15,19 @@ uint32_t starttick = 0;
 static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                     const struct sockaddr* addr, unsigned flags) {
     if (nread > 0) {
-        if(nread == sizeof(uint8_t)){
-			uint32_t packet = 0;
-			memcpy(&packet,rcvbuf->base,sizeof(packet));
-			myid = packet;
-			starttick = tick;
-			serverbasetick = 
-		}
+        if (nread == sizeof(uint64_t)) {
+            uint64_t packet = 0;
+            memcpy(&packet, rcvbuf->base, sizeof(packet));
+            if (kGetPacketId(packet) == kEFlappyPacketIdPlayerId) {
+                myid = kGetPlayerId(packet);
+                starttick = tick;
+                serverbasetick = kGetTick(packet);
+                printf("our id :%u\n",myid);
+            }
+
+        } else if (nread == sizeof(struct GamestateClient)) {
+            printf("we got a state packet\n");
+        }
     }
 
     free(rcvbuf->base);
@@ -44,7 +49,8 @@ int main() {
 
     // join the game
     uv_udp_send_t send_req;
-    uint16_t packet = 0xCAFE;
+    uint64_t packet = 0;
+    kPackInsertPlayer(packet);
     uv_buf_t buffer = uv_buf_init((char*)&packet, sizeof(packet));
     uv_udp_send(&send_req, &client, &buffer, 1, &host, NULL);
 
@@ -52,7 +58,6 @@ int main() {
     SetTargetFPS(240);
     InitWindow(960, 540, "Flappy");
     double accumulator = 0.0;
-    
 
     while (!WindowShouldClose()) {
         accumulator += GetFrameTime();
@@ -61,12 +66,15 @@ int main() {
             ++tick;
         }
         if (IsMouseButtonPressed(0)) {
-            
-            uint8_t packet = 1;
+            uv_udp_send_t send_req;
+            uint64_t packet = 0;
+            kPackPlayerInput(packet,1);
             uv_buf_t buffer = uv_buf_init((char*)&packet, sizeof(packet));
             uv_udp_send(&send_req, &client, &buffer, 1, &host, NULL);
         } else if (IsMouseButtonReleased(0)) {
-            uint8_t packet = 0;
+            uv_udp_send_t send_req;
+            uint64_t packet = 0;
+            kPackPlayerInput(packet, 0);
             uv_buf_t buffer = uv_buf_init((char*)&packet, sizeof(packet));
             uv_udp_send(&send_req, &client, &buffer, 1, &host, NULL);
         }
