@@ -20,6 +20,7 @@
         "*.ipp": "c",
         "uv.h": "c",
         "*.m": "c",
-        "raylib.h": "c"
+        "raylib.h": "c",
+        "variant": "c"
     }
 }
