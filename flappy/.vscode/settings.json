@@ -14,6 +14,10 @@
         "levelmap.h": "c",
         "gameshared.h": "c",
         "netinterface.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "assert.h": "c",
+        "stdint.h": "c",
+        "*.ipp": "c",
+        "uv.h": "c"
     }
 }
