@@ -8,7 +8,6 @@
 #include "gameshared.h"
 #include "levelmap.h"
 struct GamestateServerside gstate;
-
 void InsertPlayerIntoGamestate(uint32_t ipv4, uint16_t port) {
     if (gstate.playercount < kMaxNumberOfPlayers) {
         gstate.players[gstate.playercount].ipv4 = ipv4;
@@ -26,11 +25,18 @@ void InsertPlayerIntoGamestate(uint32_t ipv4, uint16_t port) {
         gstate.gamestarted = 1;
     }
 }
-
-void GameUpdate(uv_udp_t* server) {
+static void on_send(uv_udp_send_t* req, int status) {
+    if (req) {
+        free(req);
+    }
+    if (status) {
+        printf("status:%s\n", uv_strerror(status));
+    }
+}
+void GameUpdate(uv_udp_t* udphandle) {
     static const float kGravity = 5.f;
     static const float kXVelocity = 1.f;
-    if (gstate.playercount == kMaxNumberOfPlayers) {
+    if (gstate.gamestarted) {
         struct GamestateClient gstateclient;
 
         ++gstate.tick;
@@ -56,13 +62,19 @@ void GameUpdate(uv_udp_t* server) {
             kPackPlayerPosition(gstateclient.players[n].y,
                                 player->player.position);
         }
-        uv_udp_send_t send_req;
-        uv_buf_t buffer =
-            uv_buf_init((char*)&gstateclient, sizeof(struct GamestateClient));
-        for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
-            uv_udp_send(&send_req, server, &buffer, 1,
-                        &gstate.players[n].addrin, NULL);
+
+        gstate.send = !gstate.send;
+        if(gstate.send){
+            uv_buf_t buffer = uv_buf_init((char*)&gstateclient,
+                                          sizeof(struct GamestateClient));
+            for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
+                uv_udp_send_t* send_req = malloc(sizeof(uv_udp_send_t));
+
+                uv_udp_send(send_req, udphandle, &buffer, 1,
+                            &gstate.players[n].addrin, on_send);
+            }
         }
+
     }
 }
 
@@ -80,6 +92,13 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                    ipv4 >> 16 & 0xFF, ipv4 >> 24 & 0xFF, port);
             struct sockaddr local;
             InsertPlayerIntoGamestate(ipv4, port);
+            packet = 0;
+            kPackPlayerId(packet,gstate.playercount,gstate.tick);
+            uv_buf_t buffer = uv_buf_init((char*)&packet, sizeof(packet));
+            uv_udp_send_t* send_req = malloc(sizeof(uv_udp_send_t));
+
+            uv_udp_send(send_req, handle, &buffer, 1, addr, on_send);
+            
         } else if (packetid == kEFlappyPacketIdInput) {
             if (gstate.gamestarted) {
                 struct PlayerServerside* player = NULL;
@@ -94,7 +113,9 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                 }
                 assert(player != NULL);
                 player->isflapping = kGetInput(packet);
+
             }
+
         }
     }
 
@@ -105,6 +126,7 @@ static void on_alloc(uv_handle_t* client, size_t suggested_size,
     buf->base = malloc(suggested_size);
     buf->len = suggested_size;
 }
+
 int main() {
     uv_loop_t* loop = uv_default_loop();
     struct sockaddr_in recv_addr;

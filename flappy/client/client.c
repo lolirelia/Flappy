@@ -23,6 +23,8 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                 starttick = tick;
                 serverbasetick = kGetTick(packet);
                 printf("our id :%u\n",myid);
+            }else{
+                printf("unrecognised packet\n");
             }
 
         } else if (nread == sizeof(struct GamestateClient)) {
