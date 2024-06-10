@@ -47,10 +47,10 @@ typedef void (*NiTransferCallback)(const NetInterface* ni,  NetInterfaceAddr* ni
 
 NetInterface* MakeNetInterface();
 void DestroyNetInterface(NetInterface* ni);
-int MakeSocket(NetInterface* ni);
-int MakeSocketBind(NetInterface* ni);
+int NIMakeSocket(NetInterface* ni);
+int NIMakeSocketBind(NetInterface* ni);
 void NetSleep(uint32_t u32Miliseconds);
-void Poll(NetInterface* ni, NiTransferCallback niCallback);
+void NIPoll(NetInterface* ni, NiTransferCallback niCallback);
 void SendPacket(NetInterface* ni, NetInterfaceAddr* niAddr, char* msgbuffer,
                 uint32_t size);
 
@@ -58,6 +58,6 @@ NetInterfaceAddr* MakeRemoteAddress(const char* cHostName, uint16_t u16Port);
 void DestroyNetInterfaceAddr(NetInterfaceAddr* niAddr);
 
 int IsErrorNoBlock(NetInterface* ni);
-void DestroySocket(NetInterface* ni);
+void NIDestroySocket(NetInterface* ni);
 
 #endif

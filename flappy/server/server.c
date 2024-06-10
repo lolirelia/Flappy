@@ -22,6 +22,11 @@ void Callback(const NetInterface* ni, NetInterfaceAddr* niAddr,
         uint16_t packet;
         memcpy(&packet, buffer, sizeof(uint16_t));
         if (packet == 0xCAFE) {
+            printf("%d.%d.%d.%d - Wants to join\n",
+                   niAddr->m_niRemoteAddr.sin_addr.s_addr >> 0 & 0xFF,
+                   niAddr->m_niRemoteAddr.sin_addr.s_addr >> 8 & 0xFF,
+                   niAddr->m_niRemoteAddr.sin_addr.s_addr >> 16 & 0xFF,
+                   niAddr->m_niRemoteAddr.sin_addr.s_addr >> 24 & 0xFF);
             // insert player into the game
             InsertPlayerIntoGamestate(niAddr);
         }
@@ -84,7 +89,7 @@ void GameUpdate(NetInterface* ni) {
 int main() {
     memset(&gstate, 0, sizeof(struct GamestateServerside));
     NetInterface* ni = MakeNetInterface();
-    if (MakeSocketBind(ni)) {
+    if (NIMakeSocketBind(ni)) {
         SetTargetFPS(240);
         InitWindow(960, 540, "Flappy");
         double accumulator = 0.0;
@@ -95,7 +100,7 @@ int main() {
                 accumulator -= kTimestep;
                 GameUpdate(ni);
             }
-            Poll(ni, Callback);
+            NIPoll(ni, Callback);
 
             BeginDrawing();
 
@@ -103,7 +108,7 @@ int main() {
 
             EndDrawing();
         }
-        DestroySocket(ni);
+        NIDestroySocket(ni);
     }
     DestroyNetInterface(ni);
     return 0;
