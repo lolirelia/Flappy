@@ -9,6 +9,7 @@
 #include "levelmap.h"
 struct GamestateServerside gstate;
 void InsertPlayerIntoGamestate(uint32_t ipv4, uint16_t port) {
+    ++gstate.playerid;
     if (gstate.playercount < kMaxNumberOfPlayers) {
         gstate.players[gstate.playercount].ipv4 = ipv4;
         gstate.players[gstate.playercount].port = port;
@@ -19,15 +20,17 @@ void InsertPlayerIntoGamestate(uint32_t ipv4, uint16_t port) {
         printf("%s %d\n", ipbuffer, port);
         uv_ip4_addr(ipbuffer, htons(port),
                     &gstate.players[gstate.playercount].addrin);
-        gstate.players[gstate.playercount].player.id = ++gstate.playercount;
+        gstate.players[gstate.playercount].player.id = gstate.playerid;
+        ++gstate.playercount;
     }
     if (gstate.playercount == kMaxNumberOfPlayers) {
         gstate.gamestarted = 1;
     }
+
 }
 void on_send(uv_udp_send_t* req, int status) {
-    assert(req!=NULL) ;
-    assert(req->data!=NULL);
+    assert(req != NULL);
+    assert(req->data != NULL);
     uv_buf_t* buf = (uv_buf_t*)req->data;
     assert(buf->base != NULL);
     free(buf->base);
@@ -46,6 +49,7 @@ uv_udp_send_t* AllocateBuffer(void* data, uint32_t size) {
     memcpy(req->data, &buf, sizeof(uv_buf_t));
     return req;
 }
+
 void GameUpdate(uv_udp_t* udphandle) {
     static const float kGravity = 0.1f;
     static const float kXVelocity = 2.f;
@@ -53,13 +57,11 @@ void GameUpdate(uv_udp_t* udphandle) {
     if (gstate.gamestarted) {
         struct GamestateClient gstateclient;
 
-        
-
         // gstateclient.tick = gstate.tick;
         for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
             struct PlayerServerside* player = &gstate.players[n];
             if (player->isflapping) {
-                //printf("flapping\n");
+                // printf("flapping\n");
             }
             if (player->isflapping) {
                 player->velocity.y -= kGravity;
@@ -73,7 +75,7 @@ void GameUpdate(uv_udp_t* udphandle) {
                 Vector2Add(player->player.position, player->velocity);
             // player->player.x+=player->velocity.x;
             // player->player.y+=player->velocity.y;
-
+            assert(player->player.id != 0);
             kPackPlayerId(gstateclient.players[n].x, player->player.id,
                           gstate.tick);
             kPackPlayerPosition(gstateclient.players[n].y,
@@ -81,19 +83,20 @@ void GameUpdate(uv_udp_t* udphandle) {
         }
 
         gstate.send = !gstate.send;
-        if(gstate.send){
+        if (gstate.send) {
+            for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
+                uv_udp_send_t* send_req = AllocateBuffer(
+                    &gstateclient, sizeof(struct GamestateClient));
+                uv_udp_send(send_req, udphandle, send_req->data, 1,
+                            &gstate.players[n].addrin, on_send);
+            }
         }
-        for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
-            uv_udp_send_t* send_req =
-                AllocateBuffer(&gstateclient, sizeof(struct GamestateClient));
-            uv_udp_send(send_req, udphandle, send_req->data, 1,
-                        &gstate.players[n].addrin, on_send);
-        }
+
     }
 }
 
 void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
-                    const struct sockaddr* addr, unsigned flags) {
+             const struct sockaddr* addr, unsigned flags) {
     if (nread == sizeof(uint64_t)) {
         uint64_t packet = 0;
         memcpy(&packet, rcvbuf->base, sizeof(packet));
@@ -107,10 +110,9 @@ void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
             struct sockaddr local;
             InsertPlayerIntoGamestate(ipv4, port);
             packet = 0;
-            kPackPlayerId(packet,gstate.playercount,gstate.tick);
+            kPackPlayerId(packet, gstate.playerid, gstate.tick);
 
-            uv_udp_send_t* send_req =
-                AllocateBuffer(&packet, sizeof(packet));
+            uv_udp_send_t* send_req = AllocateBuffer(&packet, sizeof(packet));
 
             uv_udp_send(send_req, handle, send_req->data, 1, addr, on_send);
 
@@ -129,16 +131,13 @@ void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                 assert(player != NULL);
                 player->isflapping = kGetInput(packet);
                 player->velocity.y = 0;
-
             }
-
         }
     }
 
     free(rcvbuf->base);
 }
-void on_alloc(uv_handle_t* client, size_t suggested_size,
-                     uv_buf_t* buf) {
+void on_alloc(uv_handle_t* client, size_t suggested_size, uv_buf_t* buf) {
     buf->base = malloc(suggested_size);
     buf->len = suggested_size;
 }
@@ -171,7 +170,8 @@ int main() {
         ClearBackground(BLACK);
 
         for (int n = 0; n < kMaxNumberOfPlayers; ++n) {
-            DrawRectangle(gstate.players[n].player.position.x,gstate.players[n].player.position.y, 16, 16, RED);
+            DrawRectangle(gstate.players[n].player.position.x,
+                          gstate.players[n].player.position.y, 16, 16, RED);
         }
         DrawFPS(100, 100);
         EndDrawing();
