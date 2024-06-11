@@ -59,6 +59,7 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                 myid = kGetPlayerId(packet);
                 starttick = tick;
                 serverbasetick = kGetTick(packet);
+                printf("My player id:%u\n",myid);
             }else{
                 
             }
@@ -69,6 +70,8 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
             memcpy(&gstate, rcvbuf->base, sizeof(struct GamestateClient));
             cvector_push_back(gamestates,gstate);
             uint32_t t = kGetTick(gstate.players[0].x);
+            printf("Got state\n");
+            printf("%u\t%u\n", kGetPlayerId(gstate.players[0].x),kGetPlayerId(gstate.players[1].x));
             int ndex = GetNextFramendex();
             
             if (ndex > -1) {
@@ -135,9 +138,11 @@ int main() {
         ClearBackground(BLACK);
         DrawFPS(100, 100);
         for(int n = 0; n < kMaxNumberOfPlayers; ++n){
+            
             Vector2 position = {0};
             memcpy(&position,&render.players[n].y,sizeof(uint64_t));
             DrawRectangle(position.x,position.y,16,16,RED);
+            
         }
         EndDrawing();
 

@@ -5,7 +5,7 @@
 #include <raymath.h>
 #include <stdint.h>
 #define kTimestep (1 / 60.0)
-#define kMaxNumberOfPlayers (1)
+#define kMaxNumberOfPlayers (2)
 #define kRenderDelayTicks (6)
 #define kMaxNumberOfStates (10)
 #define kGetPtr(x) (&x)
