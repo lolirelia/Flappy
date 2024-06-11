@@ -70,8 +70,8 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
             memcpy(&gstate, rcvbuf->base, sizeof(struct GamestateClient));
             cvector_push_back(gamestates,gstate);
             uint32_t t = kGetTick(gstate.players[0].x);
-            printf("Got state\n");
-            printf("%u\t%u\n", kGetPlayerId(gstate.players[0].x),kGetPlayerId(gstate.players[1].x));
+            //printf("Got state\n");
+            //printf("%u\t%u\n", kGetPlayerId(gstate.players[0].x),kGetPlayerId(gstate.players[1].x));
             int ndex = GetNextFramendex();
             
             if (ndex > -1) {
@@ -93,7 +93,30 @@ static void on_alloc(uv_handle_t* client, size_t suggested_size,
     buf->base = malloc(suggested_size);
     buf->len = suggested_size;
 }
-
+static void on_send(uv_udp_send_t* req, int status) {
+    assert(req != NULL);
+    assert(req->data != NULL);
+    uv_buf_t* buf = (uv_buf_t*)req->data;
+    assert(buf->base != NULL);
+    free(buf->base);
+    free(req->data);
+    free(req);
+    if (status) {
+        printf("status:%s\n", uv_strerror(status));
+    }
+    if (status) {
+        printf("status:%s\n", uv_strerror(status));
+    }
+}
+uv_udp_send_t* AllocateBuffer(void* data,uint32_t size){
+    uv_udp_send_t* req = malloc(sizeof(uv_udp_send_t));
+    req->data = malloc(sizeof(uv_buf_t));
+    void* buffer = malloc(size);
+    memcpy(buffer,data,size);
+    uv_buf_t buf = uv_buf_init(buffer,size);
+    memcpy(req->data,&buf,sizeof(uv_buf_t));
+    return req;
+}
 int main() {
     uv_udp_t client;
     uv_loop_t* loop = uv_default_loop();
@@ -121,17 +144,16 @@ int main() {
             ++tick;
         }
         if (IsMouseButtonPressed(0)) {
-            uv_udp_send_t send_req;
+
             uint64_t packet = 0;
             kPackPlayerInput(packet,1);
-            uv_buf_t buffer = uv_buf_init((char*)&packet, sizeof(packet));
-            uv_udp_send(&send_req, &client, &buffer, 1, &host, NULL);
+            uv_udp_send_t* req = AllocateBuffer(&packet,sizeof(packet));
+            uv_udp_send(req, &client, req->data, 1, &host, on_send);
         } else if (IsMouseButtonReleased(0)) {
-            uv_udp_send_t send_req;
             uint64_t packet = 0;
             kPackPlayerInput(packet, 0);
-            uv_buf_t buffer = uv_buf_init((char*)&packet, sizeof(packet));
-            uv_udp_send(&send_req, &client, &buffer, 1, &host, NULL);
+            uv_udp_send_t* req = AllocateBuffer(&packet, sizeof(packet));
+            uv_udp_send(req, &client, req->data, 1, &host, on_send);
         }
         struct GamestateClient render = GetGamestateToRender();
         BeginDrawing();
