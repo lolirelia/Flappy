@@ -4,9 +4,9 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <stdint.h>
-#define kTimestep (1 / 60.0)
-#define kMaxNumberOfPlayers (2)
-#define kRenderDelayTicks (6)
+#define kTimestep (1 / 10.0)
+#define kMaxNumberOfPlayers (1)
+#define kRenderDelayTicks (1)
 #define kMaxNumberOfStates (10)
 #define kGetPtr(x) (&x)
 #define kGetAddr(x) ((struct sockaddr_in*)kGetPtr(x))
