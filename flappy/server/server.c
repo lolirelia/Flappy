@@ -52,7 +52,7 @@ uv_udp_send_t* AllocateBuffer(void* data, uint32_t size) {
 
 void GameUpdate(uv_udp_t* udphandle) {
     static const float kGravity = 0.1f;
-    static const float kXVelocity = 2.f;
+    static const float kXVelocity = 1.5f;
     ++gstate.tick;
     if (gstate.gamestarted) {
         struct GamestateClient gstateclient;
@@ -147,7 +147,7 @@ int main() {
     struct sockaddr_in recv_addr;
     uv_udp_t server;
 
-    uv_ip4_addr("127.0.0.1", 23456, &recv_addr);
+    uv_ip4_addr("0.0.0.0", 23456, &recv_addr);
     assert(uv_udp_init(loop, &server) == 0);
     assert(uv_udp_bind(&server, (struct sockaddr*)&recv_addr, 0) == 0);
     assert(uv_udp_recv_start(&server, on_alloc, on_recv) == 0);
@@ -155,6 +155,7 @@ int main() {
     SetTraceLogLevel(LOG_NONE);
     SetTargetFPS(240);
     InitWindow(960, 540, "Flappy");
+    LoadLevel();
     memset(&gstate, 0, sizeof(struct GamestateServerside));
     double accumulator = 0.0;
 
@@ -168,7 +169,10 @@ int main() {
         BeginDrawing();
 
         ClearBackground(BLACK);
-
+        const struct MapInstance* map = GetMapInstance();
+        for (int ndex = 0; ndex < map->collisioncount; ++ndex) {
+            DrawRectangleLinesEx(map->collisions[ndex], 1.f, GREEN);
+        }
         for (int n = 0; n < kMaxNumberOfPlayers; ++n) {
             DrawRectangle(gstate.players[n].player.position.x,
                           gstate.players[n].player.position.y, 16, 16, RED);

@@ -2,9 +2,10 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 static struct MapInstance g_levelmap;
 void LoadLevel() {
-    FILE* fMap = fopen("resources/level.map", "rb");
+    FILE* fMap = fopen("resources/map.dat", "rb");
     assert(fMap != NULL);
     fseek(fMap, 0, SEEK_END);
     uint32_t collisioncount = ftell(fMap);
@@ -26,4 +27,8 @@ void DestroyMap() {
     free(g_levelmap.collisions);
     g_levelmap.collisions = 0;
     g_levelmap.collisioncount = 0;
+}
+
+const struct MapInstance* GetMapInstance(){
+    return &g_levelmap;
 }

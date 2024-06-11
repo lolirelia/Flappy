@@ -4,8 +4,9 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <stdint.h>
+
 #define kTimestep (1 / 60.0)
-#define kMaxNumberOfPlayers (2)
+#define kMaxNumberOfPlayers (1)
 #define kRenderDelayTicks (6)
 #define kMaxNumberOfStates (10)
 #define kGetPtr(x) (&x)
@@ -69,5 +70,5 @@ struct PlayerRenderData {
     uint32_t id;
     Vector2 position;
 };
-
+#define kFlappyCollisionSize 16
 #endif

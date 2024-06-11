@@ -154,12 +154,15 @@ void GetGamestateToRender(struct PlayerRenderData* result) {
         //return render;
     }
 }
+
+
+//
 int main() {
     uv_udp_t client;
     uv_loop_t* loop = uv_default_loop();
     struct sockaddr host;
     assert(uv_udp_init(loop, &client) == 0);
-    assert(uv_ip4_addr("127.0.0.1", 23456, (struct sockaddr_in*)&host) == 0);
+    assert(uv_ip4_addr("0.0.0.0", 23456, (struct sockaddr_in*)&host) == 0);
     assert(uv_udp_recv_start(&client, on_alloc, on_recv) == 0);
 
     // join the game
@@ -173,7 +176,12 @@ int main() {
     SetTargetFPS(240);
     InitWindow(960, 540, "Flappy");
     double accumulator = 0.0;
-
+    Camera2D viewport;
+    viewport.offset = (Vector2){960/2.f,0};
+    viewport.target = (Vector2){0.f,0.f};
+    viewport.rotation = 0.f;
+    viewport.zoom = 1.f;
+    LoadLevel();
     while (!WindowShouldClose()) {
         accumulator += GetFrameTime();
         while (accumulator >= kTimestep) {
@@ -197,14 +205,23 @@ int main() {
         BeginDrawing();
         ClearBackground(BLACK);
         DrawFPS(100, 100);
+        BeginMode2D(viewport);
+        const struct MapInstance* map = GetMapInstance();
+        for(int ndex = 0; ndex < map->collisioncount; ++ndex){
+            DrawRectangleLinesEx(map->collisions[ndex],1.f,GREEN);
+        }
         for (int ndex = 0; ndex < kMaxNumberOfPlayers; ++ndex) {
             Color c = RED;
             if(render[ndex].id == g_myid){
                 c = GOLD;
+                viewport.target.x = render[ndex].position.x;
+                
             }
 
-            DrawRectangle(render[ndex].position.x, render[ndex].position.y, 16, 16, c);
+            DrawRectangle(render[ndex].position.x, render[ndex].position.y, kFlappyCollisionSize, kFlappyCollisionSize, c);
         }
+
+        EndMode2D();
         EndDrawing();
 
         uv_run(loop, UV_RUN_NOWAIT);
