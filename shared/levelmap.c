@@ -5,7 +5,7 @@
 #include <stdlib.h>
 static struct MapInstance g_levelmap;
 void LoadLevel() {
-    FILE* fMap = fopen("resources/map.dat", "rb");
+    FILE* fMap = fopen("../resources/map.dat", "rb");
     assert(fMap != NULL);
     fseek(fMap, 0, SEEK_END);
     uint32_t collisioncount = ftell(fMap);
