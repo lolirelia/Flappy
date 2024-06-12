@@ -5,8 +5,9 @@
 #include <raymath.h>
 #include <stdint.h>
 #define kTimestep (1 / 60.0)
-#define kMaxNumberOfPlayers (2)
+#define kMaxNumberOfPlayers (1)
 #define kRenderDelayTicks (6)
+#define kMaxNumberOfStates (10)
 #define kGetPtr(x) (&x)
 #define kGetAddr(x) ((struct sockaddr_in*)kGetPtr(x))
 #define kGetAddrPtr(x) ((struct sockaddr_in*)x)
@@ -60,6 +61,9 @@ struct GamestateServerside {
     uint32_t playercount;
     uint32_t tick;
     uint8_t gamestarted;
+    uint8_t send;
 };
+
+
 
 #endif
