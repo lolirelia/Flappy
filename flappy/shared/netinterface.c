@@ -1,7 +1,5 @@
 
 #include "netinterface.h"
-static char* g_pool = NULL;
-#define kGlobalPoolSize 65536
 static int IsValidSocket(NetInterface* ni) {
 #ifdef NETINTERFACE_USING_WINDOWS
     if (ni->m_niPeer == INVALID_SOCKET) return 0;
@@ -41,8 +39,6 @@ static int NonBlock(NetInterface* ni) {
 NetInterface* MakeNetInterface() {
     NetInterface* ni = malloc(sizeof(NetInterface));
     assert(ni != NULL);
-    g_pool = malloc(kGlobalPoolSize);
-    assert(g_pool != NULL);
 
 #ifdef NETINTERFACE_USING_WINDOWS
     WSAData data = {0};
@@ -73,7 +69,6 @@ int MakeSocket(NetInterface* ni) {
     NonBlock(ni);
     return 1;
 }
-#include <stdio.h>
 int MakeSocketBind(NetInterface* ni) {
     NISockAddrIn niSelfAddress = {0};
     niSelfAddress.sin_family = AF_INET;
@@ -103,7 +98,7 @@ void Poll(NetInterface* ni, NiTransferCallback niCallback) {
                  (NISockAddr*)&niAddr, &niUSizeOfAddr);
 
     if (!IsErrorNoBlock(ni)) {
-        printf("%s\n", msgbuffer);
+        niCallback(ni,&niAddr,msgbuffer,niTransferSize);
     }
 }
 void SendPacket(NetInterface* ni, NetInterfaceAddr* niAddr, char* msgbuffer,
