@@ -18,7 +18,7 @@ void on_send(uv_udp_send_t* req, int status) {
         printf("status:%s\n", uv_strerror(status));
     }
 }
-uv_udp_send_t* AllocateBuffer(uv_buf_t* uvbuf,void* data, uint32_t size) {
+uv_udp_send_t* AllocateBuffer(uv_buf_t* uvbuf, void* data, uint32_t size) {
     uv_udp_send_t* req = malloc(sizeof(uv_udp_send_t));
 
     req->data = malloc(size);
@@ -66,12 +66,14 @@ void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
             uint32_t ipv4 = kGetAddrPtr(addr)->sin_addr.s_addr;
             uint16_t port = kGetAddrPtr(addr)->sin_port;
             struct sockaddr local;
-            struct PlayerServerside* inserted = InsertPlayerIntoGamestate(ipv4, port);
+            struct PlayerServerside* inserted =
+                InsertPlayerIntoGamestate(ipv4, port);
             assert(inserted != NULL);
             packet = 0;
             kPackPlayerId(packet, inserted->player.id, g_servergamestate.tick);
             uv_buf_t uvbuf;
-            uv_udp_send_t* send_req = AllocateBuffer(&uvbuf,&packet, sizeof(packet));
+            uv_udp_send_t* send_req =
+                AllocateBuffer(&uvbuf, &packet, sizeof(packet));
 
             uv_udp_send(send_req, handle, &uvbuf, 1, addr, on_send);
 
@@ -123,6 +125,7 @@ void GameUpdate(uv_udp_t* udphandle) {
 
             player->velocity.x = kXVelocity;
 
+            // create player collision rectangle
             Rectangle playerrec =
                 (Rectangle){player->player.position.x + player->velocity.x,
                             player->player.position.y + player->velocity.y,
@@ -139,18 +142,23 @@ void GameUpdate(uv_udp_t* udphandle) {
                     break;
                 }
             }
+
             if (collisionoccurred) {
+                //stop x movement whether x or y collision occurrs
                 player->velocity.x = 0;
-                bool canHitY = true;
+
+                //check y collision so we don't fall through colliders
+                uint8_t ycollision = 1;
                 if (playerrec.x >
                     collider.x +
                         kPlayerCollisionSize)  // our left is past wall right
-                    canHitY = false;
+                    ycollision = 0;
                 else if (playerrec.x + collider.width <
                          collider.x)  // our right is past wall left
-                    canHitY = false;
+                    ycollision = 0;
 
-                if (canHitY) {
+                if (ycollision) {
+                    //y collision occured, stop y movement
                     player->velocity.y = 0;
                 }
             }
@@ -174,7 +182,7 @@ void GameUpdate(uv_udp_t* udphandle) {
 
                     uv_buf_t uvbuf;
                     uv_udp_send_t* send_req =
-                        AllocateBuffer(&uvbuf,&packet, sizeof(packet));
+                        AllocateBuffer(&uvbuf, &packet, sizeof(packet));
                     uv_udp_send(send_req, udphandle, &uvbuf, 1,
                                 &g_servergamestate.players[n].addrin, on_send);
                 }
@@ -186,7 +194,7 @@ void GameUpdate(uv_udp_t* udphandle) {
             for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
                 uv_buf_t uvbuf;
                 uv_udp_send_t* send_req = AllocateBuffer(
-                    &uvbuf,&gstateclient, sizeof(struct GamestateClient));
+                    &uvbuf, &gstateclient, sizeof(struct GamestateClient));
                 uv_udp_send(send_req, udphandle, &uvbuf, 1,
                             &g_servergamestate.players[n].addrin, on_send);
             }
@@ -205,7 +213,7 @@ int main() {
 
     SetTraceLogLevel(LOG_NONE);
     SetTargetFPS(240);
-    InitWindow(960, 540, "Flappy");
+    InitWindow(960, 540, "Flappy - Server");
     LoadLevel();
     memset(&g_servergamestate, 0, sizeof(struct GamestateServerside));
     double accumulator = 0.0;
@@ -220,17 +228,26 @@ int main() {
         BeginDrawing();
 
         ClearBackground(BLACK);
-        const struct MapInstance* map = GetMapInstance();
-        for (int ndex = 0; ndex < map->collisioncount; ++ndex) {
-            DrawRectangleLinesEx(map->collisions[ndex], 1.f, GREEN);
-        }
+        static const char* displaymessage = "RESPECT MY AUTHORITAH";
+        int xmeasurement = MeasureText(displaymessage, 40);
+        DrawText(displaymessage,960/2.f - (xmeasurement/2.f),540/2.f,40,WHITE);
+            // Don't really need to render anything since we are the server
+            // after all
+            /*
+            const struct MapInstance* map = GetMapInstance();
+            for (int ndex = 0; ndex < map->collisioncount; ++ndex) {
+                DrawRectangleLinesEx(map->collisions[ndex], 1.f, GREEN);
+            }
 
-        for (int n = 0; n < kMaxNumberOfPlayers; ++n) {
-            DrawRectangle(g_servergamestate.players[n].player.position.x,
-                          g_servergamestate.players[n].player.position.y, 16, 16, RED);
-        }
-        DrawFPS(100, 100);
-        EndDrawing();
+            for (int n = 0; n < kMaxNumberOfPlayers; ++n) {
+                DrawRectangle(g_servergamestate.players[n].player.position.x,
+                              g_servergamestate.players[n].player.position.y,
+            16, 16, RED);
+            }
+            DrawFPS(100, 100);
+            */
+
+            EndDrawing();
 
         uv_run(loop, UV_RUN_NOWAIT);
     }
