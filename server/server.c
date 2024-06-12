@@ -7,28 +7,8 @@
 
 #include "gameshared.h"
 #include "levelmap.h"
-struct GamestateServerside gstate;
-void InsertPlayerIntoGamestate(uint32_t ipv4, uint16_t port) {
-    ++gstate.playerid;
-    if (gstate.playercount < kMaxNumberOfPlayers) {
-        gstate.players[gstate.playercount].ipv4 = ipv4;
-        gstate.players[gstate.playercount].port = port;
-        char ipbuffer[32] = {0};
+struct GamestateServerside g_servergamestate;
 
-        sprintf(ipbuffer, "%d.%d.%d.%d", (ipv4 >> 0) & 0xFF, (ipv4 >> 8) & 0xFF,
-                (ipv4 >> 16) & 0xFF, (ipv4 >> 24) & 0xFF);
-        printf("%s %d\n", ipbuffer, port);
-        uv_ip4_addr(ipbuffer, htons(port),
-                    &gstate.players[gstate.playercount].addrin);
-        gstate.players[gstate.playercount].player.id = gstate.playerid;
-        gstate.players[gstate.playercount].player.position.x = 0;
-        gstate.players[gstate.playercount].player.position.y = 540/2.f;
-        ++gstate.playercount;
-    }
-    if (gstate.playercount == kMaxNumberOfPlayers) {
-        gstate.gamestarted = 1;
-    }
-}
 void on_send(uv_udp_send_t* req, int status) {
     assert(req != NULL);
     assert(req->data != NULL);
@@ -50,98 +30,36 @@ uv_udp_send_t* AllocateBuffer(void* data, uint32_t size) {
     memcpy(req->data, &buf, sizeof(uv_buf_t));
     return req;
 }
-#define kPlayerCollisionSize kFlappyCollisionSize
-void GameUpdate(uv_udp_t* udphandle) {
-    static const float kGravity = 0.1f;
-    static const float kXVelocity = 1.5f;
-    ++gstate.tick;
-    if (gstate.gamestarted) {
-        struct GamestateClient gstateclient;
 
-        // gstateclient.tick = gstate.tick;
-        const struct MapInstance* map = GetMapInstance();
-        for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
-            struct PlayerServerside* player = &gstate.players[n];
-            if (player->isflapping) {
-                // printf("flapping\n");
-            }
-            if (player->isflapping) {
-                player->velocity.y -= kGravity;
-            } else {
-                player->velocity.y += kGravity;
-            }
+struct PlayerServerside* InsertPlayerIntoGamestate(uint32_t ipv4,
+                                                   uint16_t port) {
+    struct PlayerServerside* player = NULL;
+    ++g_servergamestate.playerid;
+    if (g_servergamestate.playercount < kMaxNumberOfPlayers) {
+        player = &g_servergamestate.players[g_servergamestate.playercount];
 
-            player->velocity.x = kXVelocity;
+        // for some reason I need to reconstruct the players sockaddr
+        // because copying it from recv callback just doesn't work
+        player->ipv4 = ipv4;
+        player->port = port;
+        char ipbuffer[32] = {0};
 
-            Rectangle playerrec =
-                (Rectangle){player->player.position.x + player->velocity.x,
-                            player->player.position.y + player->velocity.y, kPlayerCollisionSize,
-                            kPlayerCollisionSize};
+        sprintf(ipbuffer, "%d.%d.%d.%d", (ipv4 >> 0) & 0xFF, (ipv4 >> 8) & 0xFF,
+                (ipv4 >> 16) & 0xFF, (ipv4 >> 24) & 0xFF);
+        printf("Insertng : %s %d\n", ipbuffer, port);
+        uv_ip4_addr(ipbuffer, htons(port), &player->addrin);
 
-            bool collisionoccurred = false;
-            Rectangle collider ;
-            
-            for (int ndex = 0; ndex < map->collisioncount; ++ndex) {
-                if (CheckCollisionRecs(map->collisions[ndex],playerrec)) {
-                                                    collisionoccurred = true;
-                                                   collider =  GetCollisionRec(map->collisions[ndex],playerrec);
-                                                   break;
-                }
-            }
-            if(collisionoccurred){
-                player->velocity.x = 0;
-                bool canHitY = true;
-                if (playerrec.x >
-                    collider.x +
-                        kPlayerCollisionSize)  // our left is past wall right
-                    canHitY = false;
-                else if (playerrec.x + collider.width <
-                         collider.x)  // our right is past wall left
-                    canHitY = false;
-
-                    if(canHitY){
-                        player->velocity.y = 0;
-                    }
-
-            }
-            
-            player->player.position =
-                Vector2Add(player->player.position, player->velocity);
-
-            // player->player.x+=player->velocity.x;
-            // player->player.y+=player->velocity.y;
-            assert(player->player.id != 0);
-            kPackPlayerId(gstateclient.players[n].x, player->player.id,
-                          gstate.tick);
-            kPackPlayerPosition(gstateclient.players[n].y,
-                                player->player.position);
-
-            if(player->player.position.x >=2832.f){
-
-                gstate.gamestarted = 0;
-                for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
-                    uint64_t packet = 0;
-                    kPackPlayerWinner(packet,player->player.id);
-                    uv_udp_send_t* send_req =
-                        AllocateBuffer(&packet, sizeof(packet));
-                    uv_udp_send(send_req, udphandle, send_req->data, 1,
-                                &gstate.players[n].addrin, on_send);
-                }
-            }
-        }
-
-        gstate.send = !gstate.send;
-        if (gstate.send) {
-            for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
-                uv_udp_send_t* send_req = AllocateBuffer(
-                    &gstateclient, sizeof(struct GamestateClient));
-                uv_udp_send(send_req, udphandle, send_req->data, 1,
-                            &gstate.players[n].addrin, on_send);
-            }
-        }
+        player->player.id = g_servergamestate.playerid;
+        player->player.position.x = 0;
+        player->player.position.y = 540 / 2.f;
+        ++g_servergamestate.playercount;
     }
-}
+    if (g_servergamestate.playercount == kMaxNumberOfPlayers) {
+        g_servergamestate.gamestarted = 1;
+    }
 
+    return player;
+}
 void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
              const struct sockaddr* addr, unsigned flags) {
     if (nread == sizeof(uint64_t)) {
@@ -149,29 +67,27 @@ void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
         memcpy(&packet, rcvbuf->base, sizeof(packet));
         uint16_t packetid = kGetPacketId(packet);
         if (packetid == kEFlappyPacketInsertPlayer) {
-            printf("inserting player into game: ");
             uint32_t ipv4 = kGetAddrPtr(addr)->sin_addr.s_addr;
             uint16_t port = kGetAddrPtr(addr)->sin_port;
-            printf("%d.%d.%d.%d %d\n", ipv4 >> 0 & 0xFF, ipv4 >> 8 & 0xFF,
-                   ipv4 >> 16 & 0xFF, ipv4 >> 24 & 0xFF, port);
             struct sockaddr local;
-            InsertPlayerIntoGamestate(ipv4, port);
+            struct PlayerServerside* inserted = InsertPlayerIntoGamestate(ipv4, port);
+            assert(inserted != NULL);
             packet = 0;
-            kPackPlayerId(packet, gstate.playerid, gstate.tick);
+            kPackPlayerId(packet, inserted->player.id, g_servergamestate.tick);
 
             uv_udp_send_t* send_req = AllocateBuffer(&packet, sizeof(packet));
 
             uv_udp_send(send_req, handle, send_req->data, 1, addr, on_send);
 
         } else if (packetid == kEFlappyPacketIdInput) {
-            if (gstate.gamestarted) {
+            if (g_servergamestate.gamestarted) {
                 struct PlayerServerside* player = NULL;
                 uint32_t ipv4 = kGetAddrPtr(addr)->sin_addr.s_addr;
                 uint16_t port = kGetAddrPtr(addr)->sin_port;
                 for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
-                    if (gstate.players[n].ipv4 == ipv4 &&
-                        gstate.players[n].port == port) {
-                        player = &gstate.players[n];
+                    if (g_servergamestate.players[n].ipv4 == ipv4 &&
+                        g_servergamestate.players[n].port == port) {
+                        player = &g_servergamestate.players[n];
                         break;
                     }
                 }
@@ -188,7 +104,96 @@ void on_alloc(uv_handle_t* client, size_t suggested_size, uv_buf_t* buf) {
     buf->base = malloc(suggested_size);
     buf->len = suggested_size;
 }
+#define kPlayerCollisionSize kFlappyCollisionSize
+void GameUpdate(uv_udp_t* udphandle) {
+    static const float kGravity = 0.1f;
+    static const float kXVelocity = 1.5f;
+    ++g_servergamestate.tick;
+    if (g_servergamestate.gamestarted) {
+        struct GamestateClient gstateclient;
 
+        // gstateclient.tick = g_servergamestate.tick;
+        const struct MapInstance* map = GetMapInstance();
+        for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
+            struct PlayerServerside* player = &g_servergamestate.players[n];
+            if (player->isflapping) {
+                // printf("flapping\n");
+            }
+            if (player->isflapping) {
+                player->velocity.y -= kGravity;
+            } else {
+                player->velocity.y += kGravity;
+            }
+
+            player->velocity.x = kXVelocity;
+
+            Rectangle playerrec =
+                (Rectangle){player->player.position.x + player->velocity.x,
+                            player->player.position.y + player->velocity.y,
+                            kPlayerCollisionSize, kPlayerCollisionSize};
+
+            bool collisionoccurred = false;
+            Rectangle collider;
+
+            for (int ndex = 0; ndex < map->collisioncount; ++ndex) {
+                if (CheckCollisionRecs(map->collisions[ndex], playerrec)) {
+                    collisionoccurred = true;
+                    collider =
+                        GetCollisionRec(map->collisions[ndex], playerrec);
+                    break;
+                }
+            }
+            if (collisionoccurred) {
+                player->velocity.x = 0;
+                bool canHitY = true;
+                if (playerrec.x >
+                    collider.x +
+                        kPlayerCollisionSize)  // our left is past wall right
+                    canHitY = false;
+                else if (playerrec.x + collider.width <
+                         collider.x)  // our right is past wall left
+                    canHitY = false;
+
+                if (canHitY) {
+                    player->velocity.y = 0;
+                }
+            }
+
+            player->player.position =
+                Vector2Add(player->player.position, player->velocity);
+
+            // player->player.x+=player->velocity.x;
+            // player->player.y+=player->velocity.y;
+            assert(player->player.id != 0);
+            kPackPlayerId(gstateclient.players[n].x, player->player.id,
+                          g_servergamestate.tick);
+            kPackPlayerPosition(gstateclient.players[n].y,
+                                player->player.position);
+
+            if (player->player.position.x >= 2832.f) {
+                g_servergamestate.gamestarted = 0;
+                for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
+                    uint64_t packet = 0;
+                    kPackPlayerWinner(packet, player->player.id);
+                    uv_udp_send_t* send_req =
+                        AllocateBuffer(&packet, sizeof(packet));
+                    uv_udp_send(send_req, udphandle, send_req->data, 1,
+                                &g_servergamestate.players[n].addrin, on_send);
+                }
+            }
+        }
+
+        g_servergamestate.send = !g_servergamestate.send;
+        if (g_servergamestate.send) {
+            for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
+                uv_udp_send_t* send_req = AllocateBuffer(
+                    &gstateclient, sizeof(struct GamestateClient));
+                uv_udp_send(send_req, udphandle, send_req->data, 1,
+                            &g_servergamestate.players[n].addrin, on_send);
+            }
+        }
+    }
+}
 int main() {
     uv_loop_t* loop = uv_default_loop();
     struct sockaddr_in recv_addr;
@@ -203,7 +208,7 @@ int main() {
     SetTargetFPS(240);
     InitWindow(960, 540, "Flappy");
     LoadLevel();
-    memset(&gstate, 0, sizeof(struct GamestateServerside));
+    memset(&g_servergamestate, 0, sizeof(struct GamestateServerside));
     double accumulator = 0.0;
 
     while (!WindowShouldClose()) {
@@ -222,8 +227,8 @@ int main() {
         }
 
         for (int n = 0; n < kMaxNumberOfPlayers; ++n) {
-            DrawRectangle(gstate.players[n].player.position.x,
-                          gstate.players[n].player.position.y, 16, 16, RED);
+            DrawRectangle(g_servergamestate.players[n].player.position.x,
+                          g_servergamestate.players[n].player.position.y, 16, 16, RED);
         }
         DrawFPS(100, 100);
         EndDrawing();
