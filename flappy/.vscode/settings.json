@@ -18,6 +18,8 @@
         "assert.h": "c",
         "stdint.h": "c",
         "*.ipp": "c",
-        "uv.h": "c"
+        "uv.h": "c",
+        "*.m": "c",
+        "raylib.h": "c"
     }
 }
