@@ -86,25 +86,20 @@ void on_alloc(uv_handle_t* client, size_t suggested_size, uv_buf_t* buf) {
 void on_send(uv_udp_send_t* req, int status) {
     assert(req != NULL);
     assert(req->data != NULL);
-    uv_buf_t* buf = (uv_buf_t*)req->data;
-    assert(buf->base != NULL);
-    free(buf->base);
     free(req->data);
     free(req);
     if (status) {
         printf("status:%s\n", uv_strerror(status));
     }
 }
-uv_udp_send_t* AllocateBuffer(void* data, uint32_t size) {
+uv_udp_send_t* AllocateBuffer(uv_buf_t* uvbuf, void* data, uint32_t size) {
     uv_udp_send_t* req = malloc(sizeof(uv_udp_send_t));
-    req->data = malloc(sizeof(uv_buf_t));
-    void* buffer = malloc(size);
-    memcpy(buffer, data, size);
-    uv_buf_t buf = uv_buf_init(buffer, size);
-    memcpy(req->data, &buf, sizeof(uv_buf_t));
+
+    req->data = malloc(size);
+    memcpy(req->data, data, size);
+    *uvbuf = uv_buf_init(req->data, size);
     return req;
 }
-
 void GetGamestateToRender(struct PlayerRenderData* result) {
     int nextframe = GetNextFramendex();
     if (nextframe < 0) {
@@ -168,11 +163,12 @@ int main() {
     assert(uv_udp_recv_start(&client, on_alloc, on_recv) == 0);
 
     // join the game
-    uv_udp_send_t send_req;
+
     uint64_t packet = 0;
     kPackInsertPlayer(packet);
-    uv_buf_t buffer = uv_buf_init((char*)&packet, sizeof(packet));
-    uv_udp_send(&send_req, &client, &buffer, 1, &host, NULL);
+    uv_buf_t uvb;
+    uv_udp_send_t* send_req = AllocateBuffer(&uvb, &packet, sizeof(packet));
+    uv_udp_send(send_req, &client, &uvb, 1, &host, NULL);
 
     SetTraceLogLevel(LOG_NONE);
     SetTargetFPS(240);
@@ -191,15 +187,19 @@ int main() {
             ++g_tick;
         }
         if (IsMouseButtonPressed(0)) {
+            uv_buf_t uvbuf;
             uint64_t packet = 0;
             kPackPlayerInput(packet, 1);
-            uv_udp_send_t* req = AllocateBuffer(&packet, sizeof(packet));
-            uv_udp_send(req, &client, req->data, 1, &host, on_send);
+            
+            uv_udp_send_t* req = AllocateBuffer(&uvbuf,&packet, sizeof(packet));
+            uv_udp_send(req, &client, &uvbuf, 1, &host, on_send);
         } else if (IsMouseButtonReleased(0)) {
+            uv_buf_t uvbuf;
             uint64_t packet = 0;
             kPackPlayerInput(packet, 0);
-            uv_udp_send_t* req = AllocateBuffer(&packet, sizeof(packet));
-            uv_udp_send(req, &client, req->data, 1, &host, on_send);
+
+            uv_udp_send_t* req = AllocateBuffer(&uvbuf,&packet, sizeof(packet));
+            uv_udp_send(req, &client, &uvbuf, 1, &host, on_send);
         }
         struct PlayerRenderData render[kMaxNumberOfPlayers];
 

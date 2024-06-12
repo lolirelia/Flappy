@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 #define kTimestep (1 / 60.0)
-#define kMaxNumberOfPlayers (2)
+#define kMaxNumberOfPlayers (1)
 #define kRenderDelayTicks (6)
 #define kMaxNumberOfStates (10)
 

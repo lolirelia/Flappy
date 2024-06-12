@@ -12,22 +12,18 @@ struct GamestateServerside g_servergamestate;
 void on_send(uv_udp_send_t* req, int status) {
     assert(req != NULL);
     assert(req->data != NULL);
-    uv_buf_t* buf = (uv_buf_t*)req->data;
-    assert(buf->base != NULL);
-    free(buf->base);
     free(req->data);
     free(req);
     if (status) {
         printf("status:%s\n", uv_strerror(status));
     }
 }
-uv_udp_send_t* AllocateBuffer(void* data, uint32_t size) {
+uv_udp_send_t* AllocateBuffer(uv_buf_t* uvbuf,void* data, uint32_t size) {
     uv_udp_send_t* req = malloc(sizeof(uv_udp_send_t));
-    req->data = malloc(sizeof(uv_buf_t));
-    void* buffer = malloc(size);
-    memcpy(buffer, data, size);
-    uv_buf_t buf = uv_buf_init(buffer, size);
-    memcpy(req->data, &buf, sizeof(uv_buf_t));
+
+    req->data = malloc(size);
+    memcpy(req->data, data, size);
+    *uvbuf = uv_buf_init(req->data, size);
     return req;
 }
 
@@ -74,10 +70,10 @@ void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
             assert(inserted != NULL);
             packet = 0;
             kPackPlayerId(packet, inserted->player.id, g_servergamestate.tick);
+            uv_buf_t uvbuf;
+            uv_udp_send_t* send_req = AllocateBuffer(&uvbuf,&packet, sizeof(packet));
 
-            uv_udp_send_t* send_req = AllocateBuffer(&packet, sizeof(packet));
-
-            uv_udp_send(send_req, handle, send_req->data, 1, addr, on_send);
+            uv_udp_send(send_req, handle, &uvbuf, 1, addr, on_send);
 
         } else if (packetid == kEFlappyPacketIdInput) {
             if (g_servergamestate.gamestarted) {
@@ -175,9 +171,11 @@ void GameUpdate(uv_udp_t* udphandle) {
                 for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
                     uint64_t packet = 0;
                     kPackPlayerWinner(packet, player->player.id);
+
+                    uv_buf_t uvbuf;
                     uv_udp_send_t* send_req =
-                        AllocateBuffer(&packet, sizeof(packet));
-                    uv_udp_send(send_req, udphandle, send_req->data, 1,
+                        AllocateBuffer(&uvbuf,&packet, sizeof(packet));
+                    uv_udp_send(send_req, udphandle, &uvbuf, 1,
                                 &g_servergamestate.players[n].addrin, on_send);
                 }
             }
@@ -186,9 +184,10 @@ void GameUpdate(uv_udp_t* udphandle) {
         g_servergamestate.send = !g_servergamestate.send;
         if (g_servergamestate.send) {
             for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
+                uv_buf_t uvbuf;
                 uv_udp_send_t* send_req = AllocateBuffer(
-                    &gstateclient, sizeof(struct GamestateClient));
-                uv_udp_send(send_req, udphandle, send_req->data, 1,
+                    &uvbuf,&gstateclient, sizeof(struct GamestateClient));
+                uv_udp_send(send_req, udphandle, &uvbuf, 1,
                             &g_servergamestate.players[n].addrin, on_send);
             }
         }
