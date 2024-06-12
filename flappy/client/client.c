@@ -33,8 +33,8 @@ int GetNextFramendex() {
     }
     return -1;
 }
-
-
+uint32_t winner = 0;
+uint32_t winnerid = 0;
 void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
              const struct sockaddr* addr, unsigned flags) {
     if (nread > 0) {
@@ -45,7 +45,9 @@ void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                 g_myid = kGetPlayerId(packet);
                 printf("my id:%u\n",g_myid);
 
-            } else {
+            } else if(kGetPacketId(packet) == kEFlappyPacketWinner){
+                winner = 1;
+                winnerid = kGetPlayerId(packet);
             }
 
         } else if (nread == sizeof(struct GamestateClient)) {
@@ -204,7 +206,9 @@ int main() {
         GetGamestateToRender(render);
         BeginDrawing();
         ClearBackground(BLACK);
-        DrawFPS(100, 100);
+        //DrawFPS(100, 100);
+
+        Vector2 myposition ;
         BeginMode2D(viewport);
         const struct MapInstance* map = GetMapInstance();
         for(int ndex = 0; ndex < map->collisioncount; ++ndex){
@@ -215,13 +219,24 @@ int main() {
             if(render[ndex].id == g_myid){
                 c = GOLD;
                 viewport.target.x = render[ndex].position.x;
-                
+               myposition = render[ndex].position;
             }
 
             DrawRectangle(render[ndex].position.x, render[ndex].position.y, kFlappyCollisionSize, kFlappyCollisionSize, c);
         }
 
         EndMode2D();
+        DrawText(TextFormat("%.2f:%.2f\n", myposition.x,myposition.y),
+                 25, 25, 20, GOLD);
+
+        if(winner){
+            if(winnerid==g_myid){
+                DrawText("YOU WON!",960/2.f,540/2.f,30,WHITE);
+            }
+            else {
+                DrawText("YOU LOSE!", 960 / 2.f, 540 / 2.f, 30, WHITE);
+            }
+        }
         EndDrawing();
 
         uv_run(loop, UV_RUN_NOWAIT);
