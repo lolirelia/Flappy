@@ -1,3 +1,6 @@
 [submodule "flappy/raylib"]
 	path = flappy/raylib
 	url = https://github.com/raysan5/raylib.git
+[submodule "flappy/libuv"]
+	path = flappy/libuv
+	url = https://github.com/libuv/libuv.git

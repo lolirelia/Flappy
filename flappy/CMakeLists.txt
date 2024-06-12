@@ -2,23 +2,23 @@ cmake_minimum_required(VERSION 3.8)
 
 set(CLIENT_SRC "client/client.c")
 set(SERVER_SRC "server/server.c")
-set(NET_SHARED_DIR "shared")
+set(SHARED_DIR "shared")
 
 add_subdirectory(raylib)
-
+add_subdirectory(libuv)
 
 project(client)
 
-add_executable(client ${CLIENT_SRC} ${NET_SHARED_DIR}/netinterface.c)
+add_executable(client ${CLIENT_SRC} )
 
-target_include_directories(client PUBLIC ${NET_SHARED_DIR} raylib)
+target_include_directories(client PUBLIC ${SHARED_DIR} raylib libuv/include)
 
-target_link_libraries(client PUBLIC raylib)
+target_link_libraries(client PUBLIC raylib uv)
 
 project (server)
 
-add_executable(server ${SERVER_SRC} ${NET_SHARED_DIR}/netinterface.c)
+add_executable(server ${SERVER_SRC} )
 
-target_include_directories(server PUBLIC ${NET_SHARED_DIR} raylib)
+target_include_directories(server PUBLIC ${SHARED_DIR} raylib libuv/include)
 
-target_link_libraries(server PUBLIC raylib)
+target_link_libraries(server PUBLIC raylib uv)

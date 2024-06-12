@@ -12,7 +12,7 @@ struct PlayerClient {
 struct PlayerServerside {
     struct PlayerClient player;
     Vector2 velocity;
-    NetInterfaceAddr netid;
+
     uint8_t isflapping;
 };
 
