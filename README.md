@@ -1,4 +1,4 @@
-A 2d multiplayer implementation of Flappy using Raylib for rendering a libuv for networking. 
+A 2d multiplayer implementation of Flappy using Raylib for rendering a libuv for UDP networking. 
 
 Gameplay Mechanics:
 Hold left click to rise, release left click to fall. The objective is to be the first to complete the map. 
