@@ -50,3 +50,5 @@ When desired number of players connect (kMaxNumberOfPlayers in gameshared.h) the
 
 
 CONT:
+![gameplay](https://github.com/lolirelia/Flappy/assets/50451019/4f114199-046e-4b3c-bfb9-a0ae2e7e8ab2)
+
