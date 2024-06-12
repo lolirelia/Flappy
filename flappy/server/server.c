@@ -21,12 +21,13 @@ void InsertPlayerIntoGamestate(uint32_t ipv4, uint16_t port) {
         uv_ip4_addr(ipbuffer, htons(port),
                     &gstate.players[gstate.playercount].addrin);
         gstate.players[gstate.playercount].player.id = gstate.playerid;
+        gstate.players[gstate.playercount].player.position.x = 0;
+        gstate.players[gstate.playercount].player.position.y = 540/2.f;
         ++gstate.playercount;
     }
     if (gstate.playercount == kMaxNumberOfPlayers) {
         gstate.gamestarted = 1;
     }
-
 }
 void on_send(uv_udp_send_t* req, int status) {
     assert(req != NULL);
@@ -49,7 +50,7 @@ uv_udp_send_t* AllocateBuffer(void* data, uint32_t size) {
     memcpy(req->data, &buf, sizeof(uv_buf_t));
     return req;
 }
-
+#define kPlayerCollisionSize kFlappyCollisionSize
 void GameUpdate(uv_udp_t* udphandle) {
     static const float kGravity = 0.1f;
     static const float kXVelocity = 1.5f;
@@ -58,6 +59,7 @@ void GameUpdate(uv_udp_t* udphandle) {
         struct GamestateClient gstateclient;
 
         // gstateclient.tick = gstate.tick;
+        const struct MapInstance* map = GetMapInstance();
         for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
             struct PlayerServerside* player = &gstate.players[n];
             if (player->isflapping) {
@@ -71,8 +73,40 @@ void GameUpdate(uv_udp_t* udphandle) {
 
             player->velocity.x = kXVelocity;
 
+            Rectangle playerrec =
+                (Rectangle){player->player.position.x + player->velocity.x,
+                            player->player.position.y + player->velocity.y, kPlayerCollisionSize,
+                            kPlayerCollisionSize};
+
+            bool collisionoccurred = false;
+            Rectangle collider ;
+            
+            for (int ndex = 0; ndex < map->collisioncount; ++ndex) {
+                if (CheckCollisionRecs(map->collisions[ndex],playerrec)) {
+                                                    collisionoccurred = true;
+                                                   collider =  GetCollisionRec(map->collisions[ndex],playerrec);
+                                                   break;
+                }
+            }
+            if(collisionoccurred){
+                player->velocity.x = 0;
+                bool canHitY = true;
+                if (playerrec.x >
+                    collider.x +
+                        kPlayerCollisionSize)  // our left is past wall right
+                    canHitY = false;
+                else if (playerrec.x + collider.width <
+                         collider.x)  // our right is past wall left
+                    canHitY = false;
+
+                    if(canHitY){
+                        player->velocity.y = 0;
+                    }
+            }
+            
             player->player.position =
                 Vector2Add(player->player.position, player->velocity);
+
             // player->player.x+=player->velocity.x;
             // player->player.y+=player->velocity.y;
             assert(player->player.id != 0);
@@ -91,7 +125,6 @@ void GameUpdate(uv_udp_t* udphandle) {
                             &gstate.players[n].addrin, on_send);
             }
         }
-
     }
 }
 
@@ -173,6 +206,7 @@ int main() {
         for (int ndex = 0; ndex < map->collisioncount; ++ndex) {
             DrawRectangleLinesEx(map->collisions[ndex], 1.f, GREEN);
         }
+
         for (int n = 0; n < kMaxNumberOfPlayers; ++n) {
             DrawRectangle(gstate.players[n].player.position.x,
                           gstate.players[n].player.position.y, 16, 16, RED);
