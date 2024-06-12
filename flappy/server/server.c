@@ -26,12 +26,25 @@ void InsertPlayerIntoGamestate(uint32_t ipv4, uint16_t port) {
     }
 }
 static void on_send(uv_udp_send_t* req, int status) {
-    if (req) {
-        //free(req);
-    }
+    assert(req!=NULL) ;
+    assert(req->data!=NULL);
+    uv_buf_t* buf = (uv_buf_t*)req->data;
+    assert(buf->base != NULL);
+    free(buf->base);
+    free(req->data);
+    free(req);
     if (status) {
         printf("status:%s\n", uv_strerror(status));
     }
+}
+uv_udp_send_t* AllocateBuffer(void* data, uint32_t size) {
+    uv_udp_send_t* req = malloc(sizeof(uv_udp_send_t));
+    req->data = malloc(sizeof(uv_buf_t));
+    void* buffer = malloc(size);
+    memcpy(buffer, data, size);
+    uv_buf_t buf = uv_buf_init(buffer, size);
+    memcpy(req->data, &buf, sizeof(uv_buf_t));
+    return req;
 }
 void GameUpdate(uv_udp_t* udphandle) {
     static const float kGravity = 0.1f;
@@ -45,6 +58,9 @@ void GameUpdate(uv_udp_t* udphandle) {
         // gstateclient.tick = gstate.tick;
         for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
             struct PlayerServerside* player = &gstate.players[n];
+            if (player->isflapping) {
+                //printf("flapping\n");
+            }
             if (player->isflapping) {
                 player->velocity.y -= kGravity;
             } else {
@@ -66,12 +82,10 @@ void GameUpdate(uv_udp_t* udphandle) {
 
         gstate.send = !gstate.send;
         if(gstate.send){
-            uv_buf_t buffer = uv_buf_init((char*)&gstateclient,
-                                          sizeof(struct GamestateClient));
             
             for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
-                uv_udp_send_t* send_req = malloc(sizeof(uv_udp_send_t));
-                uv_udp_send(send_req, udphandle, &buffer, 1,
+                uv_udp_send_t* send_req = AllocateBuffer(&gstateclient,sizeof(struct GamestateClient));
+                uv_udp_send(send_req, udphandle, send_req->data, 1,
                             &gstate.players[n].addrin, on_send);
             }
         }
@@ -95,10 +109,11 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
             InsertPlayerIntoGamestate(ipv4, port);
             packet = 0;
             kPackPlayerId(packet,gstate.playercount,gstate.tick);
-            uv_buf_t buffer = uv_buf_init((char*)&packet, sizeof(packet));
-            uv_udp_send_t* send_req = malloc(sizeof(uv_udp_send_t));
 
-            uv_udp_send(send_req, handle, &buffer, 1, addr, on_send);
+            uv_udp_send_t* send_req =
+                AllocateBuffer(&packet, sizeof(packet));
+
+            uv_udp_send(send_req, handle, send_req->data, 1, addr, on_send);
 
         } else if (packetid == kEFlappyPacketIdInput) {
             if (gstate.gamestarted) {
