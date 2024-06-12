@@ -1,0 +1,3 @@
+[submodule "flappy/raylib"]
+	path = flappy/raylib
+	url = https://github.com/raysan5/raylib.git
