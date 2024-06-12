@@ -25,7 +25,7 @@ void InsertPlayerIntoGamestate(uint32_t ipv4, uint16_t port) {
         gstate.gamestarted = 1;
     }
 }
-static void on_send(uv_udp_send_t* req, int status) {
+void on_send(uv_udp_send_t* req, int status) {
     assert(req!=NULL) ;
     assert(req->data!=NULL);
     uv_buf_t* buf = (uv_buf_t*)req->data;
@@ -92,7 +92,7 @@ void GameUpdate(uv_udp_t* udphandle) {
     }
 }
 
-static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
+void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                     const struct sockaddr* addr, unsigned flags) {
     if (nread == sizeof(uint64_t)) {
         uint64_t packet = 0;
@@ -137,7 +137,7 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
 
     free(rcvbuf->base);
 }
-static void on_alloc(uv_handle_t* client, size_t suggested_size,
+void on_alloc(uv_handle_t* client, size_t suggested_size,
                      uv_buf_t* buf) {
     buf->base = malloc(suggested_size);
     buf->len = suggested_size;

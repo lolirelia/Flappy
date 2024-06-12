@@ -49,7 +49,7 @@ struct GamestateClient GetGamestateToRender(){
         return gamestates[nextframe];
     }
 }
-static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
+void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                     const struct sockaddr* addr, unsigned flags) {
     if (nread > 0) {
         if (nread == sizeof(uint64_t)) {
@@ -88,12 +88,12 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
     free(rcvbuf->base);
 }
 
-static void on_alloc(uv_handle_t* client, size_t suggested_size,
+void on_alloc(uv_handle_t* client, size_t suggested_size,
                      uv_buf_t* buf) {
     buf->base = malloc(suggested_size);
     buf->len = suggested_size;
 }
-static void on_send(uv_udp_send_t* req, int status) {
+void on_send(uv_udp_send_t* req, int status) {
     assert(req != NULL);
     assert(req->data != NULL);
     uv_buf_t* buf = (uv_buf_t*)req->data;
