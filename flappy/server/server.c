@@ -82,14 +82,13 @@ void GameUpdate(uv_udp_t* udphandle) {
 
         gstate.send = !gstate.send;
         if(gstate.send){
-            
-            for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
-                uv_udp_send_t* send_req = AllocateBuffer(&gstateclient,sizeof(struct GamestateClient));
-                uv_udp_send(send_req, udphandle, send_req->data, 1,
-                            &gstate.players[n].addrin, on_send);
-            }
         }
-
+        for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
+            uv_udp_send_t* send_req =
+                AllocateBuffer(&gstateclient, sizeof(struct GamestateClient));
+            uv_udp_send(send_req, udphandle, send_req->data, 1,
+                        &gstate.players[n].addrin, on_send);
+        }
     }
 }
 
