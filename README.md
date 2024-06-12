@@ -48,6 +48,7 @@ Server will need to be launched before the clients.
 When desired number of players connect (kMaxNumberOfPlayers in gameshared.h) the game will begin and server will start sending gamestate packets to the clients.
 By default I set this value to 1 to make testing easier. If you'd like to play with two players , change kMaxNmberOfPlaeyrs to 2 and so on..
 
-![gameplay](https://github.com/lolirelia/Flappy/assets/50451019/e30a71d6-a80b-4516-959b-414feb33cb90)
+![gameplay](https://github.com/lolirelia/Flappy/assets/50451019/c10d9670-755f-442a-b800-e6fa40604ccd)
+
 
 
