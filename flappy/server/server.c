@@ -1,63 +1,28 @@
+
+
+#include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <uv.h>
 
 #include "gameshared.h"
 #include "levelmap.h"
-#include "netinterface.h"
-#include <raymath.h>
-#include <uv.h>
 struct GamestateServerside gstate;
-
-void InsertPlayerIntoGamestate() {
+uv_udp_send_t send_req;
+void InsertPlayerIntoGamestate(struct sockaddr addr) {
     if (gstate.playercount < kMaxNumberOfPlayers) {
-
-
-///
+        gstate.players[gstate.playercount].addr = addr;
         gstate.players[gstate.playercount].player.id = ++gstate.playercount;
     }
-}
-
-/*
-void Callback(const NetInterface* ni, NetInterfaceAddr* niAddr,
-              const char* buffer, NITransferSize niTransferSize) {
-                printf("got a message\n");
-    if (niTransferSize == sizeof(uint16_t)) {
-        uint16_t packet;
-        memcpy(&packet, buffer, sizeof(uint16_t));
-        if (packet == 0xCAFE) {
-            printf("%d.%d.%d.%d - Wants to join\n",
-                   niAddr->m_niRemoteAddr.sin_addr.s_addr >> 0 & 0xFF,
-                   niAddr->m_niRemoteAddr.sin_addr.s_addr >> 8 & 0xFF,
-                   niAddr->m_niRemoteAddr.sin_addr.s_addr >> 16 & 0xFF,
-                   niAddr->m_niRemoteAddr.sin_addr.s_addr >> 24 & 0xFF);
-            // insert player into the game
-            InsertPlayerIntoGamestate(niAddr);
-        }
-    } else if (niTransferSize == sizeof(uint8_t)) {
-        uint8_t packet;
-        memcpy(&packet, 0, sizeof(uint8_t));
-        struct PlayerServerside* player = NULL;
-        if(gstate.playercount>0){
-            for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
-
-                if (player->netid.m_niRemoteAddr.sin_addr.s_addr ==
-                    niAddr->m_niRemoteAddr.sin_addr.s_addr) {
-                    player = &gstate.players[n];
-                    break;
-                }
-            }
-            if(player != NULL){
-                player->isflapping = packet;
-            }
-        }
-
+    if (gstate.playercount == kMaxNumberOfPlayers) {
+        gstate.gamestarted = 1;
     }
 }
-*/
 
-void GameUpdate() {
+void GameUpdate(uv_udp_t* server) {
     static const float kGravity = 9.8f;
     static const float kXVelocity = 1.f;
-    if(gstate.playercount==kMaxNumberOfPlayers){
+    if (gstate.playercount == kMaxNumberOfPlayers) {
         struct GamestateClient gstateclient;
 
         ++gstate.tick;
@@ -82,42 +47,59 @@ void GameUpdate() {
             gstateclient.players[n].id = player->player.id;
             gstateclient.players[n].position = player->player.position;
         }
-        gstateclient.tick = gstate.tick;
-
+        uv_buf_t buffer =
+            uv_buf_init((char*)&gstateclient, sizeof(struct GamestateClient));
         for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
-            //SendPacket(ni, &gstate.players[n].netid, (char*)&gstateclient,sizeof(struct GamestateClient));
+            
+            
+            uv_udp_send(&send_req, server, &buffer, 1, &gstate.players[n].addr,NULL);
         }
     }
-  
 }
 
 static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                     const struct sockaddr* addr, unsigned flags) {
     if (nread == sizeof(uint16_t)) {
         uint16_t packet = 0;
-        memcpy(&packet,rcvbuf->base,sizeof(uint16_t));
-        if(packet==0xCAFE){
-            printf("Player wants to join\n");
+        memcpy(&packet, rcvbuf->base, sizeof(uint16_t));
+        if (packet == 0xCAFE) {
+            printf("inserting player into game\n");
+            InsertPlayerIntoGamestate(*addr);
         }
     }
-
+    if (nread == sizeof(uint8_t)) {
+        uint8_t packet = 0;
+        memcpy(&packet, rcvbuf->base, sizeof(uint8_t));
+        if (gstate.gamestarted) {
+            struct PlayerServerside* player = NULL;
+            for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
+                if (kGetAddr(gstate.players[n].addr)->sin_addr.s_addr ==
+                    kGetAddrPtr(addr)->sin_addr.s_addr) {
+                    player = &gstate.players[n];
+                    printf("found player\n");
+                    break;
+                }
+            }
+            assert(player != NULL);
+            player->isflapping = packet;
+            // update player
+        }
+    }
     free(rcvbuf->base);
 }
 static void on_alloc(uv_handle_t* client, size_t suggested_size,
                      uv_buf_t* buf) {
     buf->base = malloc(suggested_size);
     buf->len = suggested_size;
-
 }
 int main() {
     uv_loop_t* loop = uv_default_loop();
     struct sockaddr_in recv_addr;
     uv_udp_t server;
-    
-    
-    uv_ip4_addr("127.0.0.1", 23456,&recv_addr);
-    assert(uv_udp_init(loop, &server)==0);
-    assert(uv_udp_bind(&server,(struct sockaddr*)&recv_addr, 0) == 0);
+
+    uv_ip4_addr("127.0.0.1", 23456, &recv_addr);
+    assert(uv_udp_init(loop, &server) == 0);
+    assert(uv_udp_bind(&server, (struct sockaddr*)&recv_addr, 0) == 0);
     assert(uv_udp_recv_start(&server, on_alloc, on_recv) == 0);
 
     SetTraceLogLevel(LOG_NONE);
@@ -130,13 +112,13 @@ int main() {
         accumulator += GetFrameTime();
         while (accumulator >= kTimestep) {
             accumulator -= kTimestep;
-            GameUpdate();
+            GameUpdate(&server);
         }
 
         BeginDrawing();
 
         ClearBackground(BLACK);
-        DrawFPS(100,100);
+        DrawFPS(100, 100);
         EndDrawing();
 
         uv_run(loop, UV_RUN_NOWAIT);
