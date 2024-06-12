@@ -1,12 +1,12 @@
 #ifndef _gameshared_h
 #define _gameshared_h
-#include <netinterface.h>
+#include "netinterface.h"
 #include <raylib.h>
 #define kTimestep (1 / 60.0)
-#define kMaxNumberOfPlayers (2)
-
+#define kMaxNumberOfPlayers (1)
+#define kRenderDelayTicks (6)
 struct PlayerClient {
-    Vector2 position;
+    struct Vector2 position;
     uint32_t id;
 };
 struct PlayerServerside {

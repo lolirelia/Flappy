@@ -21,7 +21,7 @@ static int NonBlock(NetInterface* ni) {
     int timeout = 1;
     if (setsockopt(ni->m_niPeer, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
                    sizeof(int)) != 0) {
-        DestroySocket(ni);
+        NIDestroySocket(ni);
         return 0;
     }
 #else
@@ -30,7 +30,7 @@ static int NonBlock(NetInterface* ni) {
     tv.tv_usec = 1000;
     if (setsockopt(ni->m_niPeer, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) !=
         0) {
-        DestroySocket(ni);
+        NIDestroySocket(ni);
         return 0;
     }
 #endif
@@ -55,7 +55,7 @@ void DestroyNetInterface(NetInterface* ni) {
     free(ni);
 }
 
-int MakeSocket(NetInterface* ni) {
+int NIMakeSocket(NetInterface* ni) {
     ni->m_niPeer = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
     if (!IsValidSocket(ni)) return 0;
@@ -63,42 +63,43 @@ int MakeSocket(NetInterface* ni) {
     int enable = 1;
     if (setsockopt(ni->m_niPeer, SOL_SOCKET, SO_REUSEADDR, (char*)&enable,
                    sizeof(int)) != 0) {
-        DestroySocket(ni);
+        NIDestroySocket(ni);
         return 0;
     }
     NonBlock(ni);
     return 1;
 }
-int MakeSocketBind(NetInterface* ni) {
+int NIMakeSocketBind(NetInterface* ni) {
     NISockAddrIn niSelfAddress = {0};
     niSelfAddress.sin_family = AF_INET;
     niSelfAddress.sin_port = htons(23456);
     niSelfAddress.sin_addr.s_addr = INADDR_ANY;
-    if (!MakeSocket(ni)) {
+    if (!NIMakeSocket(ni)) {
         return 0;
     }
 
     if (bind(ni->m_niPeer, (NISockAddr*)&niSelfAddress, sizeof(NISockAddrIn)) !=
         0) {
-        DestroySocket(ni);
+        NIDestroySocket(ni);
         return 0;
     }
     return 1;
 }
-void Poll(NetInterface* ni, NiTransferCallback niCallback) {
+void NIPoll(NetInterface* ni, NiTransferCallback niCallback) {
     assert(IsValidSocket(ni));
 
     char msgbuffer[128];
     memset(msgbuffer, 0, sizeof(msgbuffer));
-    NISockAddrIn niAddr = {0};
+    NetInterfaceAddr niAddr = {0};
     NISockAddrSize niUSizeOfAddr = sizeof(NISockAddrIn);
 
     NITransferSize niTransferSize =
         recvfrom(ni->m_niPeer, msgbuffer, sizeof(msgbuffer), 0,
-                 (NISockAddr*)&niAddr, &niUSizeOfAddr);
+                 (NISockAddr*)&niAddr.m_niRemoteAddr, &niUSizeOfAddr);
 
     if (!IsErrorNoBlock(ni)) {
-        niCallback(ni,&niAddr,msgbuffer,niTransferSize);
+        niAddr.m_niUSizeOfAddr = niUSizeOfAddr ;
+        niCallback(ni, &niAddr, msgbuffer, niTransferSize);
     }
 }
 void SendPacket(NetInterface* ni, NetInterfaceAddr* niAddr, char* msgbuffer,
@@ -115,16 +116,15 @@ void SendPacket(NetInterface* ni, NetInterfaceAddr* niAddr, char* msgbuffer,
 
 NetInterfaceAddr* MakeRemoteAddress(const char* cHostName, uint16_t u16Port) {
     NetInterfaceAddr* niAddr = malloc(sizeof(NetInterfaceAddr));
-    if (niAddr != NULL) {
+    assert(niAddr != NULL);
 #ifdef NETINTERFACE_USING_WINDOWS
-        InetPtonA(AF_INET, cHostName, &niAddr.m_niRemoteAddr.sin_addr);
+    InetPtonA(AF_INET, cHostName, &niAddr.m_niRemoteAddr.sin_addr);
 #else
-        inet_aton(cHostName, &niAddr->m_niRemoteAddr.sin_addr);
+    inet_aton(cHostName, &niAddr->m_niRemoteAddr.sin_addr);
 #endif
-        niAddr->m_niRemoteAddr.sin_port = htons(u16Port);
-        niAddr->m_niRemoteAddr.sin_family = AF_INET;
-        niAddr->m_niUSizeOfAddr = sizeof(NetInterfaceAddr);
-    }
+    niAddr->m_niRemoteAddr.sin_port = htons(u16Port);
+    niAddr->m_niRemoteAddr.sin_family = AF_INET;
+    niAddr->m_niUSizeOfAddr = sizeof(NetInterfaceAddr);
     return niAddr;
 }
 void DestroyNetInterfaceAddr(NetInterfaceAddr* niAddr) {
@@ -154,7 +154,7 @@ int IsErrorNoBlock(NetInterface* ni) {
 #endif
     return 0;
 }
-void DestroySocket(NetInterface* ni) {
+void NIDestroySocket(NetInterface* ni) {
     assert(IsValidSocket(ni));
 #ifdef NETINTERFACE_USING_WINDOWS
     closesocket(ni->m_niPeer);
