@@ -27,7 +27,7 @@ void InsertPlayerIntoGamestate(uint32_t ipv4, uint16_t port) {
 }
 static void on_send(uv_udp_send_t* req, int status) {
     if (req) {
-        free(req);
+        //free(req);
     }
     if (status) {
         printf("status:%s\n", uv_strerror(status));
@@ -68,9 +68,9 @@ void GameUpdate(uv_udp_t* udphandle) {
         if(gstate.send){
             uv_buf_t buffer = uv_buf_init((char*)&gstateclient,
                                           sizeof(struct GamestateClient));
+            
             for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
                 uv_udp_send_t* send_req = malloc(sizeof(uv_udp_send_t));
-
                 uv_udp_send(send_req, udphandle, &buffer, 1,
                             &gstate.players[n].addrin, on_send);
             }
@@ -155,6 +155,10 @@ int main() {
         BeginDrawing();
 
         ClearBackground(BLACK);
+
+        for (int n = 0; n < kMaxNumberOfPlayers; ++n) {
+            DrawRectangle(gstate.players[n].player.position.x,gstate.players[n].player.position.y, 16, 16, RED);
+        }
         DrawFPS(100, 100);
         EndDrawing();
 
