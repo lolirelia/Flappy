@@ -34,18 +34,19 @@ static void on_send(uv_udp_send_t* req, int status) {
     }
 }
 void GameUpdate(uv_udp_t* udphandle) {
-    static const float kGravity = 5.f;
-    static const float kXVelocity = 1.f;
+    static const float kGravity = 0.1f;
+    static const float kXVelocity = 2.f;
+    ++gstate.tick;
     if (gstate.gamestarted) {
         struct GamestateClient gstateclient;
 
-        ++gstate.tick;
+        
 
         // gstateclient.tick = gstate.tick;
         for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
             struct PlayerServerside* player = &gstate.players[n];
             if (player->isflapping) {
-                player->velocity.y = -kGravity;
+                player->velocity.y -= kGravity;
             } else {
                 player->velocity.y += kGravity;
             }
@@ -98,7 +99,7 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
             uv_udp_send_t* send_req = malloc(sizeof(uv_udp_send_t));
 
             uv_udp_send(send_req, handle, &buffer, 1, addr, on_send);
-            
+
         } else if (packetid == kEFlappyPacketIdInput) {
             if (gstate.gamestarted) {
                 struct PlayerServerside* player = NULL;
@@ -113,6 +114,7 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                 }
                 assert(player != NULL);
                 player->isflapping = kGetInput(packet);
+                player->velocity.y = 0;
 
             }
 

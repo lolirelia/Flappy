@@ -4,14 +4,51 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <uv.h>
-
+#include <string.h>
 #include "gameshared.h"
 #include "levelmap.h"
+#define CVECTOR_LOGARITHMIC_GROWTH
+#include "cvector.h"
+#include "cvector_utils.h"
 
 uint32_t myid = 0;
 uint32_t tick = 0;
 uint32_t serverbasetick = 0;
 uint32_t starttick = 0;
+
+cvector_vector_type(struct GamestateClient) gamestates = NULL;
+
+int GetServerTick() { return serverbasetick + (tick - starttick) -6; }
+
+int GetNextFramendex() {
+    int delay = GetServerTick();
+    uint32_t i = 0;
+    for (int i = cvector_size(gamestates)-1; i >= 0; --i) {
+        uint32_t quetick = kGetTick(gamestates[i].players[0].x);
+        if (quetick <= delay) {
+            return i;
+        } else {
+        }
+    }
+    return -1;
+}
+
+struct GamestateClient GetGamestateToRender(){
+    int nextframe = GetNextFramendex();
+    if(nextframe <0){
+
+        struct GamestateClient empty;
+    
+       return empty;
+    }
+    else if(nextframe == cvector_size(gamestates) -1 ){
+
+        return gamestates[cvector_size(gamestates) - 1];
+    }else{
+
+        return gamestates[nextframe];
+    }
+}
 static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                     const struct sockaddr* addr, unsigned flags) {
     if (nread > 0) {
@@ -22,13 +59,26 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                 myid = kGetPlayerId(packet);
                 starttick = tick;
                 serverbasetick = kGetTick(packet);
-                printf("our id :%u\n",myid);
             }else{
-                printf("unrecognised packet\n");
+                
             }
 
         } else if (nread == sizeof(struct GamestateClient)) {
-            printf("we got a state packet\n");
+
+            struct GamestateClient gstate;
+            memcpy(&gstate, rcvbuf->base, sizeof(struct GamestateClient));
+            cvector_push_back(gamestates,gstate);
+            uint32_t t = kGetTick(gstate.players[0].x);
+            int ndex = GetNextFramendex();
+            
+            if (ndex > -1) {
+                for(int n = 0; n < ndex; ++n){
+                    
+                    uint32_t t = kGetTick(gamestates[n].players[0].x);
+                    cvector_erase(gamestates,n);
+                }
+            } 
+
         }
     }
 
@@ -80,10 +130,15 @@ int main() {
             uv_buf_t buffer = uv_buf_init((char*)&packet, sizeof(packet));
             uv_udp_send(&send_req, &client, &buffer, 1, &host, NULL);
         }
-
+        struct GamestateClient render = GetGamestateToRender();
         BeginDrawing();
         ClearBackground(BLACK);
         DrawFPS(100, 100);
+        for(int n = 0; n < kMaxNumberOfPlayers; ++n){
+            Vector2 position = {0};
+            memcpy(&position,&render.players[n].y,sizeof(uint64_t));
+            DrawRectangle(position.x,position.y,16,16,RED);
+        }
         EndDrawing();
 
         uv_run(loop, UV_RUN_NOWAIT);
