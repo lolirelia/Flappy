@@ -102,6 +102,7 @@ void GameUpdate(uv_udp_t* udphandle) {
                     if(canHitY){
                         player->velocity.y = 0;
                     }
+
             }
             
             player->player.position =
@@ -114,6 +115,19 @@ void GameUpdate(uv_udp_t* udphandle) {
                           gstate.tick);
             kPackPlayerPosition(gstateclient.players[n].y,
                                 player->player.position);
+
+            if(player->player.position.x >=2832.f){
+
+                gstate.gamestarted = 0;
+                for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
+                    uint64_t packet = 0;
+                    kPackPlayerWinner(packet,player->player.id);
+                    uv_udp_send_t* send_req =
+                        AllocateBuffer(&packet, sizeof(packet));
+                    uv_udp_send(send_req, udphandle, send_req->data, 1,
+                                &gstate.players[n].addrin, on_send);
+                }
+            }
         }
 
         gstate.send = !gstate.send;

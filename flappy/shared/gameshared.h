@@ -6,9 +6,10 @@
 #include <stdint.h>
 
 #define kTimestep (1 / 60.0)
-#define kMaxNumberOfPlayers (1)
+#define kMaxNumberOfPlayers (2)
 #define kRenderDelayTicks (6)
 #define kMaxNumberOfStates (10)
+
 #define kGetPtr(x) (&x)
 #define kGetAddr(x) ((struct sockaddr_in*)kGetPtr(x))
 #define kGetAddrPtr(x) ((struct sockaddr_in*)x)
@@ -19,6 +20,7 @@ enum EFlappyPacketId {
     kEFlappyPacketIdPlayerState,
     kEFlappyPacketIdPlayerId,
     kEFlappyPacketInsertPlayer,
+    kEFlappyPacketWinner,
     kEFlappyPacketIdMex,
 };
 #define kPackInsertPlayer(x) (x = (kEFlappyPacketInsertPlayer))
@@ -32,6 +34,9 @@ enum EFlappyPacketId {
 
 #define kPackPlayerPosition(x, y) \
     (memcpy(kGetPtr(x), kGetPtr(y), sizeof(uint64_t)))
+
+#define kPackPlayerWinner(x,y)\
+(x = ( (uint64_t)y << 48) | (uint16_t)kEFlappyPacketWinner )
 
 #define kGetPlayerId(x) ( (x >> 48) & 0xFFFF )
 #define kGetInput(x) ( (x >> 48) & 0xFFFF )
