@@ -172,7 +172,7 @@ int main() {
 
     SetTraceLogLevel(LOG_NONE);
     SetTargetFPS(240);
-    InitWindow(960, 540, "Flappy");
+    InitWindow(960, 540, "Flappy - Client");
     double accumulator = 0.0;
     Camera2D viewport;
     viewport.offset = (Vector2){960/2.f,0};
