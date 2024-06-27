@@ -90,6 +90,9 @@ void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                     }
                 }
                 assert(player != NULL);
+                uint32_t playertick = kGetTick(packet);
+                player->playertick = playertick;
+
                 player->isflapping = kGetInput(packet);
                 if(player->isflapping != player->wasflapping){
                     player->wasflapping = player->isflapping;  // we need this variable to reset velocity accordingly

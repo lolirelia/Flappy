@@ -155,7 +155,7 @@ void GetGamestateToRender(struct PlayerRenderData* result) {
 void UpadteFlappy(uv_udp_t* client, struct sockaddr* host,uint8_t isflapping) {
     uv_buf_t uvbuf;
     uint64_t packet = 0;
-    kPackPlayerInput(packet, isflapping);
+    kPackPlayerInput(packet, isflapping,g_tick);
 
     uv_udp_send_t* req = AllocateBuffer(&uvbuf, &packet, sizeof(packet));
     uv_udp_send(req, client, &uvbuf, 1, host, on_send);

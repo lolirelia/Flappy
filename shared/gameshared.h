@@ -29,8 +29,8 @@ enum EFlappyPacketId {
     (x = (((uint64_t)y << 48) | (uint64_t)z << 16 | \
           (uint16_t)kEFlappyPacketIdPlayerId))
 
-#define kPackPlayerInput(x, y) \
-    (x = (((uint64_t)y << 48) | (uint16_t)kEFlappyPacketIdInput))
+#define kPackPlayerInput(x, y, z) \
+    (x = (((uint64_t)y << 48) | (uint64_t)z << 16 |  (uint16_t)kEFlappyPacketIdInput))
 
 #define kPackPlayerPosition(x, y) \
     (memcpy(kGetPtr(x), kGetPtr(y), sizeof(uint64_t)))
@@ -59,6 +59,7 @@ struct PlayerServerside {
     uint8_t isflapping;
     uint8_t wasflapping;
     uint32_t ipv4;
+    uint32_t playertick;
     uint16_t port;
     struct sockaddr_in addrin;
     
