@@ -9,6 +9,8 @@
 
 #include "gameshared.h"
 #include "levelmap.h"
+//TODO: Isolate server netcode from raylib just like Client
+//Issue : #2
 struct GamestateServerside g_servergamestate;
 struct PlayerClient {
     Vector2 position;
