@@ -57,9 +57,11 @@ struct PlayerServerside {
     struct PlayerClient player;
     Vector2 velocity;
     uint8_t isflapping;
+    uint8_t wasflapping;
     uint32_t ipv4;
     uint16_t port;
     struct sockaddr_in addrin;
+    
 };
 
 struct GamestateServerside {

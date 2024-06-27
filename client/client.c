@@ -152,6 +152,14 @@ void GetGamestateToRender(struct PlayerRenderData* result) {
     }
 }
 
+void UpadteFlappy(uv_udp_t* client, struct sockaddr* host,uint8_t isflapping) {
+    uv_buf_t uvbuf;
+    uint64_t packet = 0;
+    kPackPlayerInput(packet, isflapping);
+
+    uv_udp_send_t* req = AllocateBuffer(&uvbuf, &packet, sizeof(packet));
+    uv_udp_send(req, client, &uvbuf, 1, host, on_send);
+}
 
 //
 int main() {
@@ -180,26 +188,19 @@ int main() {
     viewport.rotation = 0.f;
     viewport.zoom = 1.f;
     LoadLevel();
+    uint8_t isflapping = 0;
     while (!WindowShouldClose()) {
         accumulator += GetFrameTime();
         while (accumulator >= kTimestep) {
             accumulator -= kTimestep;
             ++g_tick;
+            UpadteFlappy(&client,&host,isflapping);
+
         }
         if (IsMouseButtonPressed(0)) {
-            uv_buf_t uvbuf;
-            uint64_t packet = 0;
-            kPackPlayerInput(packet, 1);
-            
-            uv_udp_send_t* req = AllocateBuffer(&uvbuf,&packet, sizeof(packet));
-            uv_udp_send(req, &client, &uvbuf, 1, &host, on_send);
+            isflapping = 1;
         } else if (IsMouseButtonReleased(0)) {
-            uv_buf_t uvbuf;
-            uint64_t packet = 0;
-            kPackPlayerInput(packet, 0);
-
-            uv_udp_send_t* req = AllocateBuffer(&uvbuf,&packet, sizeof(packet));
-            uv_udp_send(req, &client, &uvbuf, 1, &host, on_send);
+            isflapping = 0;
         }
         struct PlayerRenderData render[kMaxNumberOfPlayers];
 
