@@ -181,7 +181,7 @@ void GameUpdate(uv_udp_t* udphandle) {
                           g_servergamestate.tick);
             kPackPlayerPosition(gstateclient.players[n].y,
                                 player->player.position);
-
+            kPackPlayerPredictonTick(gstateclient.players[n].z,player->playertick);
             if (player->player.position.x >= 2832.f) {
                 g_servergamestate.gamestarted = 0;
                 for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {

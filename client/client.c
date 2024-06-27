@@ -55,12 +55,22 @@ void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
             memcpy(&gstate, rcvbuf->base, sizeof(struct GamestateClient));
             cvector_push_back(gamestates, gstate);
             uint32_t t = kGetTick(gstate.players[0].x);
+            
             if(g_starttick == 0&&g_serverbasetick==0){
                 g_starttick = g_tick;
                 g_serverbasetick = t;
             }
             for(int n = 0; n < kMaxNumberOfPlayers;++n){
                 uint32_t id = kGetPlayerId(gstate.players[n].x);
+
+
+                //this is each client's predicted or reconciliation tick sent to the server during update
+                //this tick will be used to check the map or container of the [tick][position]
+                //If the player's predicted position with their tick matches the server position with tick
+                //then no reconciliation needs to be done
+                
+                uint32_t predictedtick = kGetPredictionTick(gstate.players[n].z);
+                //printf("%u\n",predictedtick);
             }
             // printf("Got state\n");
             // printf("%u\t%u\n",

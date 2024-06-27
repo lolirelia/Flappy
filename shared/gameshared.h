@@ -38,13 +38,18 @@ enum EFlappyPacketId {
 #define kPackPlayerWinner(x,y)\
 (x = ( (uint64_t)y << 48) | (uint16_t)kEFlappyPacketWinner )
 
+#define kPackPlayerPredictonTick(x,y)\
+(x = ( (uint64_t)y << 32 ))
+
 #define kGetPlayerId(x) ( (x >> 48) & 0xFFFF )
 #define kGetInput(x) ( (x >> 48) & 0xFFFF )
 #define kGetTick(x) ( (x >> 16) & 0xFFFFFFFF )
 #define kGetPacketId(x) ( x & 0xFFFF ) 
+#define kGetPredictionTick(x) (x >> 32 &0xFFFFFFFF)
 struct PlayerState {
     uint64_t x;
     uint64_t y;
+    uint64_t z;
 };
 struct GamestateClient {
     struct PlayerState players[kMaxNumberOfPlayers];
