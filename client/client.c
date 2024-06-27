@@ -162,7 +162,7 @@ void GetGamestateToRender(struct PlayerRenderData* result) {
     }
 }
 
-void UpadteFlappy(uv_udp_t* client, struct sockaddr* host,uint8_t isflapping) {
+void UpdateFlappy(uv_udp_t* client, struct sockaddr* host,uint8_t isflapping) {
     uv_buf_t uvbuf;
     uint64_t packet = 0;
     kPackPlayerInput(packet, isflapping,g_tick);
@@ -204,8 +204,7 @@ int main() {
         while (accumulator >= kTimestep) {
             accumulator -= kTimestep;
             ++g_tick;
-            UpadteFlappy(&client,&host,isflapping);
-
+            UpdateFlappy(&client, &host, isflapping);
         }
         if (IsMouseButtonPressed(0)) {
             isflapping = 1;
