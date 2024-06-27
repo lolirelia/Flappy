@@ -8,7 +8,7 @@ add_subdirectory(libuv)
 
 project(client)
 
-add_executable(client client/client.c ${SHARED_DIR}/levelmap.c )
+add_executable(client client/client.c client/luvclient.c ${SHARED_DIR}/levelmap.c )
 
 target_include_directories(client PUBLIC ${SHARED_DIR} raylib libuv/include)
 

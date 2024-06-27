@@ -3,12 +3,38 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <raylib.h>
+#include <raymath.h>
 #include <uv.h>
 
 #include "gameshared.h"
 #include "levelmap.h"
 struct GamestateServerside g_servergamestate;
+struct PlayerClient {
+    Vector2 position;
+    uint16_t id;
+};
 
+struct PlayerServerside {
+    struct PlayerClient player;
+    struct Vector2 velocity;
+    uint8_t isflapping;
+    uint8_t wasflapping;
+    uint32_t ipv4;
+    uint32_t playertick;
+    uint16_t port;
+    struct sockaddr_in addrin;
+};
+struct GamestateServerside {
+    struct PlayerServerside players[kMaxNumberOfPlayers];
+    uint32_t playercount;
+    uint32_t tick;
+    uint8_t gamestarted;
+    uint8_t send;
+    uint32_t playerid;
+};
+#define kGetAddr(x) ((struct sockaddr_in*)kGetPtr(x))
+#define kGetAddrPtr(x) ((struct sockaddr_in*)x)
 void on_send(uv_udp_send_t* req, int status) {
     assert(req != NULL);
     assert(req->data != NULL);

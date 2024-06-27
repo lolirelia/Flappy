@@ -1,8 +1,6 @@
 #ifndef _gameshared_h
 #define _gameshared_h
 
-#include <raylib.h>
-#include <raymath.h>
 #include <stdint.h>
 
 #define kTimestep (1 / 60.0)
@@ -11,8 +9,7 @@
 #define kMaxNumberOfStates (10)
 
 #define kGetPtr(x) (&x)
-#define kGetAddr(x) ((struct sockaddr_in*)kGetPtr(x))
-#define kGetAddrPtr(x) ((struct sockaddr_in*)x)
+
 typedef uint64_t FlappyPacket;
 enum EFlappyPacketId {
     kEFlappyPacketIdNone = 0,
@@ -54,34 +51,7 @@ struct PlayerState {
 struct GamestateClient {
     struct PlayerState players[kMaxNumberOfPlayers];
 };
-struct PlayerClient {
-    struct Vector2 position;
-    uint16_t id;
-};
-struct PlayerServerside {
-    struct PlayerClient player;
-    Vector2 velocity;
-    uint8_t isflapping;
-    uint8_t wasflapping;
-    uint32_t ipv4;
-    uint32_t playertick;
-    uint16_t port;
-    struct sockaddr_in addrin;
-    
-};
 
-struct GamestateServerside {
-    struct PlayerServerside players[kMaxNumberOfPlayers];
-    uint32_t playercount;
-    uint32_t tick;
-    uint8_t gamestarted;
-    uint8_t send;
-    uint32_t playerid;
-};
 
-struct PlayerRenderData {
-    uint32_t id;
-    Vector2 position;
-};
 #define kFlappyCollisionSize 16
 #endif

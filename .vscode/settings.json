@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.ipp": "c",
+        "stdint.h": "c"
+    }
+}
