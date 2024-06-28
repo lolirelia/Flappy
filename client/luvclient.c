@@ -32,6 +32,9 @@ extern uint32_t g_serverbasetick;
 extern uint32_t g_starttick;
 extern uint32_t winner;
 extern uint32_t winnerid;
+
+static uint32_t simulating = 0;
+
 extern cvector_vector_type(struct GamestateClient) gamestates;
 extern int GetNextFramendex();
 
@@ -153,6 +156,7 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
             if (g_starttick == 0 && g_serverbasetick == 0) {
                 g_starttick = g_tick;
                 g_serverbasetick = t;
+                simulating = 1;
             }
             for (int n = 0; n < kMaxNumberOfPlayers; ++n) {
                 uint32_t id = gstate.players[n].playerid;
