@@ -11,6 +11,7 @@ static uv_loop_t* loop = NULL;
 static uv_udp_t server;
 
 #define kPlayerCollisionSize kFlappyCollisionSize
+
 struct Vector2 {
     float x;
     float y;
