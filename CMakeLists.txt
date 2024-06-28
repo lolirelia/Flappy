@@ -14,9 +14,12 @@ target_include_directories(client PUBLIC ${SHARED_DIR} raylib libuv/include)
 
 target_link_libraries(client PUBLIC raylib uv)
 
+
+
+
 project (server)
 
-add_executable(server server/server.c ${SHARED_DIR}/levelmap.c )
+add_executable(server server/server.c server/luvserver.c ${SHARED_DIR}/levelmap.c )
 
 target_include_directories(server PUBLIC ${SHARED_DIR} raylib libuv/include)
 

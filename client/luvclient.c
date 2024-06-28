@@ -7,7 +7,7 @@
 #include "gameshared.h"
 static uv_udp_t client;
 static uv_loop_t* loop = NULL;
-struct sockaddr host;
+static struct sockaddr host;
 
 extern uint32_t g_myid;
 extern uint32_t g_tick;

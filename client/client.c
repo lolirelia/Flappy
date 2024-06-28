@@ -105,9 +105,8 @@ void GetGamestateToRender(struct PlayerRenderData* result) {
 //
 int main() {
 
-
     // join the game
-
+    
     InitLuv();
     SetTraceLogLevel(LOG_NONE);
     SetTargetFPS(240);

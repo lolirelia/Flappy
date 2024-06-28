@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "*.ipp": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "levelmap.h": "c"
     }
 }
