@@ -22,6 +22,8 @@ There is a fixed 6 tick render delay (16.66666*6) roughly 100m. This means your 
 Client side prediction could be implemeneted to remove this delay, I specifically chose not to do this to keep the gameclient and server simple.
 100ms is plenty of time for the client to receive packets from the server.
 
+
+
 To Build:
 ```
 git clone https://github.com/lolirelia/Flappy.git
@@ -30,12 +32,15 @@ cd Flappy
 
 git submodule update --init --recursive
 
-cmake -B build 
+cmake -B build
+
+cp -r resources build/resources
 
 cd build
 
 make
 ```
+Note: If on windows just copy and paste resource directory to binary output directory instead of `cp -r resources build/resources`
 
 Two separate binaries are built. The server binary and the client binary. Server will host the game on address "0.0.0.0" and port 23456 while a client will attempt to connect to it.
 
