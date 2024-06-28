@@ -2,6 +2,7 @@
     "files.associations": {
         "*.ipp": "c",
         "stdint.h": "c",
-        "levelmap.h": "c"
+        "levelmap.h": "c",
+        "gameshared.h": "c"
     }
 }

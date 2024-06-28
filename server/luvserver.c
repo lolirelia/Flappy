@@ -22,6 +22,22 @@ struct Rectangle {
     float width;
     float height;
 };
+// allign all structures to 8 bytes
+#define kSizeOfPlayerStatePacket (sizeof(uint64_t) * 3)
+struct PlayerState {
+    uint16_t packetid;    // 2
+    uint16_t playerid;    // 4
+    uint32_t servertick;  // 8
+    uint32_t playertick;  // 12
+    uint32_t allignemnt;  // 16 //extra for padding
+    struct Vector2 position;     // 24
+    struct Vector2 velocity;     // 32
+};  // pad the structure to allignment for easy memory access and copy
+struct GamestateClient {
+    struct PlayerState players[kMaxNumberOfPlayers];
+};
+
+
 extern bool CheckCollisionRecs(struct Rectangle rec1, struct Rectangle rec2);
 extern struct Rectangle GetCollisionRec(struct Rectangle rec1,
                                         struct Rectangle rec2);
@@ -36,6 +52,7 @@ struct PlayerServerside {
     struct Vector2 velocity;
     uint8_t isflapping;
     uint8_t wasflapping;
+    uint8_t simulating;
     uint32_t ipv4;
     uint32_t playertick;
     uint16_t port;
@@ -117,9 +134,9 @@ static void on_alloc(uv_handle_t* client, size_t suggested_size,
 static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                     const struct sockaddr* addr, unsigned flags) {
     if (nread == sizeof(uint64_t)) {
-        uint64_t packet = 0;
-        memcpy(&packet, rcvbuf->base, sizeof(packet));
+        uint64_t packet = *(uint64_t*)rcvbuf->base;
         uint16_t packetid = kGetPacketId(packet);
+
         if (packetid == kEFlappyPacketInsertPlayer) {
             uint32_t ipv4 = kGetAddrPtr(addr)->sin_addr.s_addr;
             uint16_t port = kGetAddrPtr(addr)->sin_port;
@@ -127,15 +144,21 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
             struct PlayerServerside* inserted =
                 InsertPlayerIntoGamestate(ipv4, port);
             assert(inserted != NULL);
-            packet = 0;
-            kPackPlayerId(packet, inserted->player.id, g_servergamestate.tick);
+            struct PlayerId pid;
+            pid.packetid = kEFlappyPacketIdPlayerId;
+            pid.playerid = inserted->player.id;
+            pid.servertick = g_servergamestate.tick;
+
             uv_buf_t uvbuf;
             uv_udp_send_t* send_req =
-                AllocateBuffer(&uvbuf, &packet, sizeof(packet));
+                AllocateBuffer(&uvbuf, &pid, kSizeOfPlayerIdPacket);
 
             uv_udp_send(send_req, handle, &uvbuf, 1, addr, on_send);
 
         } else if (packetid == kEFlappyPacketIdInput) {
+            struct PlayerInput input;
+            memcpy(&input,rcvbuf->base,kSizeOfPlayerInputPacket);
+
             if (g_servergamestate.gamestarted) {
                 struct PlayerServerside* player = NULL;
                 uint32_t ipv4 = kGetAddrPtr(addr)->sin_addr.s_addr;
@@ -148,10 +171,12 @@ static void on_recv(uv_udp_t* handle, ssize_t nread, const uv_buf_t* rcvbuf,
                     }
                 }
                 assert(player != NULL);
-                uint32_t playertick = kGetTick(packet);
-                player->playertick = playertick;
+                if(player->simulating == 0){
+                    player->playertick = input.playertick;
+                    player->simulating = 1;
+                }
 
-                player->isflapping = kGetInput(packet);
+                player->isflapping = input.isflapping;
                 if (player->isflapping != player->wasflapping) {
                     player->wasflapping =
                         player->isflapping;  // we need this variable to reset
@@ -230,21 +255,22 @@ void GameUpdate() {
             // player->player.x+=player->velocity.x;
             // player->player.y+=player->velocity.y;
             assert(player->player.id != 0);
-            kPackPlayerId(gstateclient.players[n].x, player->player.id,
-                          g_servergamestate.tick);
-            kPackPlayerPosition(gstateclient.players[n].y,
-                                player->player.position);
-            kPackPlayerPredictonTick(gstateclient.players[n].z,
-                                     player->playertick);
+            gstateclient.players[n].playerid = player->player.id;
+            gstateclient.players[n].position = player->player.position;
+            gstateclient.players[n].velocity = player->velocity;
+            gstateclient.players[n].servertick = g_servergamestate.tick;
+            gstateclient.players[n].playertick = player->playertick;
+
             if (player->player.position.x >= 2832.f) {
                 g_servergamestate.gamestarted = 0;
                 for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
-                    uint64_t packet = 0;
-                    kPackPlayerWinner(packet, player->player.id);
+                    struct PlayerWinner win;
+                    win.packetid = kEFlappyPacketWinner;
+                    win.playerid = player->player.id;
 
                     uv_buf_t uvbuf;
                     uv_udp_send_t* send_req =
-                        AllocateBuffer(&uvbuf, &packet, sizeof(packet));
+                        AllocateBuffer(&uvbuf, &win, kSizeOfPlayerWinnerPacket);
                     uv_udp_send(send_req, &server, &uvbuf, 1,
                                 &g_servergamestate.players[n].addrin, on_send);
                 }
@@ -256,7 +282,7 @@ void GameUpdate() {
             for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
                 uv_buf_t uvbuf;
                 uv_udp_send_t* send_req = AllocateBuffer(
-                    &uvbuf, &gstateclient, sizeof(struct GamestateClient));
+                    &uvbuf, &gstateclient,kSizeOfPlayerStatePacket);
                 uv_udp_send(send_req, &server, &uvbuf, 1,
                             &g_servergamestate.players[n].addrin, on_send);
             }
@@ -264,7 +290,12 @@ void GameUpdate() {
     }
 }
 void InitLuv() {
+    
+
     struct sockaddr_in recv_addr;
+
+    loop = uv_default_loop();
+    LoadLevel();
     uv_ip4_addr("0.0.0.0", 23456, &recv_addr);
     assert(uv_udp_init(loop, &server) == 0);
     assert(uv_udp_bind(&server, (struct sockaddr*)&recv_addr, 0) == 0);
