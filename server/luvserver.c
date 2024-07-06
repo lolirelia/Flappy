@@ -200,16 +200,16 @@ void GameUpdate() {
         const struct MapInstance* map = GetMapInstance();
         for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
             struct PlayerServerside* player = &g_servergamestate.players[n];
-            if (player->isflapping) {
-                // printf("flapping\n");
-            }
-            if (player->isflapping) {
-                player->velocity.y -= kGravity;
-            } else {
-                player->velocity.y += kGravity;
+            if(player->simulating){
+                if (player->isflapping) {
+                    player->velocity.y -= kGravity;
+                } else {
+                    player->velocity.y += kGravity;
+                }
+
+                player->velocity.x = kXVelocity;
             }
 
-            player->velocity.x = kXVelocity;
 
             // create player collision rectangle
             struct Rectangle playerrec = (struct Rectangle){
@@ -261,6 +261,8 @@ void GameUpdate() {
             gstateclient.players[n].servertick = g_servergamestate.tick;
             gstateclient.players[n].playertick = player->playertick;
 
+
+            player->playertick++;
             if (player->player.position.x >= 2832.f) {
                 g_servergamestate.gamestarted = 0;
                 for (uint32_t n = 0; n < kMaxNumberOfPlayers; ++n) {
