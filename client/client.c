@@ -80,13 +80,21 @@ int main() {
         for (int ndex = 0; ndex < kMaxNumberOfPlayers; ++ndex) {
             Color c = RED;
             if(render[ndex].id == g_myid){
-                //Your actual position relative to the server
+                //
+                // Uncomment this if you want to see Your actual position
+                // relative to the server
+                //
+                // DrawText("State",render[ndex].x-7,render[ndex].y-15,15,RED);
+                // DrawRectangle(render[ndex].x,render[ndex].y,kFlappyCollisionSize, kFlappyCollisionSize, RED);
+            }else{
+                //if there are more players, draw them as green
                 DrawRectangle(render[ndex].x, render[ndex].y,
-                              kFlappyCollisionSize, kFlappyCollisionSize, RED);
-            } 
+                              kFlappyCollisionSize, kFlappyCollisionSize, GREEN);
+            }
         }
 
         //Your predicted position
+        //DrawText("Predict", csp.position.x-15, csp.position.y - 15, 15, GOLD);
         DrawRectangle(csp.position.x, csp.position.y, kFlappyCollisionSize,
                       kFlappyCollisionSize, GOLD);
 
