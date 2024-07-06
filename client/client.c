@@ -26,7 +26,14 @@ struct PlayerClient {
     Vector2 position;
     uint16_t id;
 };
-
+struct ClientSidePrediction {
+    struct Vector2 position;
+    struct Vector2 velocity;
+    uint8_t isflapping;
+    uint32_t tick;
+};
+extern cvector_vector_type(struct ClientSidePrediction) predictions;
+extern struct ClientSidePrediction csp;
 //
 int main() {
 
@@ -63,7 +70,8 @@ int main() {
         ClearBackground(BLACK);
         //DrawFPS(100, 100);
 
-        Vector2 myposition ;
+        Vector2 myposition  = Vector2Zero();
+        viewport.target.x = csp.position.x;
         BeginMode2D(viewport);
         const struct MapInstance* map = GetMapInstance();
         for(int ndex = 0; ndex < map->collisioncount; ++ndex){
@@ -72,16 +80,18 @@ int main() {
         for (int ndex = 0; ndex < kMaxNumberOfPlayers; ++ndex) {
             Color c = RED;
             if(render[ndex].id == g_myid){
-                c = GOLD;
-                viewport.target.x = render[ndex].x;
-               myposition = (struct Vector2){render[ndex].x,render[ndex].y};
-            }
-
-            DrawRectangle(render[ndex].x, render[ndex].y, kFlappyCollisionSize, kFlappyCollisionSize, c);
+                //Your actual position relative to the server
+                DrawRectangle(render[ndex].x, render[ndex].y,
+                              kFlappyCollisionSize, kFlappyCollisionSize, RED);
+            } 
         }
 
+        //Your predicted position
+        DrawRectangle(csp.position.x, csp.position.y, kFlappyCollisionSize,
+                      kFlappyCollisionSize, GOLD);
+
         EndMode2D();
-        DrawText(TextFormat("%.2f:%.2f\n", myposition.x,myposition.y),
+        DrawText(TextFormat("%.2f:%.2f\n", csp.position.y,csp.position.x),
                  25, 25, 20, GOLD);
 
         if(winner){
