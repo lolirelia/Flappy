@@ -18,9 +18,10 @@ Client:
 The client also has its own tick counter (this is purely used to measure render delay)
 The client receives gamestates from the server which are pushed into a container. It then decides what to render next based on the tick of the packet and the render delay.
 Interpolation is used between the current render state and the next render state. 
-There is a fixed 6 tick render delay (16.66666*6) roughly 100m. This means your inputs are consistently 100ms late.
-Client side prediction could be implemeneted to remove this delay, I specifically chose not to do this to keep the gameclient and server simple.
-100ms is plenty of time for the client to receive packets from the server.
+There is a fixed 6 tick render delay (16.66666*6) roughly 100m. This means you're seeing the gamestate in the past.
+However client side prediction is used to mitigate the delay for your own inputs, so you're seeing your own inputs before they're actually verified by the server.
+If the predicted input result doesn't match up to the server , reconciliation is used to resync to the server state. 
+(In this case, it's just overwriting the current prediction data with server state data);
 
 
 
